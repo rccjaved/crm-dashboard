@@ -162,6 +162,45 @@ export const complaintsApiSlice = apiSlice.injectEndpoints({
   }),
 });
 
+export const customerRecordsApiSlice = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    getCustomerRecords: builder.query({
+      query: (params) => ({
+        url: "/get/customer-record",
+        params,
+      }),
+      providesTags: ["CustomerRecord"],
+    }),
+    getCustomerRecordById: builder.query({
+      query: (id) => `/customer-record/${id}`,
+      providesTags: (result, error, id) => [{ type: "CustomerRecord", id }],
+    }),
+    createCustomerRecord: builder.mutation({
+      query: (recordData) => ({
+        url: "/customer-record/store",
+        method: "POST",
+        body: recordData,
+      }),
+      invalidatesTags: ["CustomerRecord"],
+    }),
+    updateCustomerRecord: builder.mutation({
+      query: (recordData) => ({
+        url: `/update-customer-record`,
+        method: "POST",
+        body: recordData,
+      }),
+      invalidatesTags: (result, error, arg) => [{ type: "CustomerRecord", id: arg.id }],
+    }),
+    // deleteCustomerRecord: builder.mutation({
+    //   query: (id) => ({
+    //     url: `/customer-record/${id}`,
+    //     method: "DELETE",
+    //   }),
+    //   invalidatesTags: ["CustomerRecord"],
+    // }),
+  }),
+});
+
 export const notificationsApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getNotifications: builder.query({
@@ -218,3 +257,11 @@ export const {
 
 export const { useGetNotificationsQuery, useMarkAsReadMutation } =
   notificationsApiSlice;
+
+export const {
+  useGetCustomerRecordsQuery,
+  useGetCustomerRecordByIdQuery,
+  useCreateCustomerRecordMutation,
+  useUpdateCustomerRecordMutation,
+  useDeleteCustomerRecordMutation,
+} = customerRecordsApiSlice;

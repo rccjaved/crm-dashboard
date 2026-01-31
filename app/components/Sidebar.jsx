@@ -1,6 +1,6 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, File, Settings, MessageSquare, Projector, User, InspectIcon, Activity, AlertCircle } from "lucide-react";
+import { LayoutDashboard, File, Settings, MessageSquare, Projector, User, InspectIcon, Activity, AlertCircle, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 
@@ -20,6 +20,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     { name: "Complaint", icon: <File />, path: "/complaint", moduleKey: "complaints" },
     { name: "Trustmark Audit", icon: <Settings />, path: "/trustmark", moduleKey: "trustmarks" },
     { name: "C3 Inspection", icon: <InspectIcon />, path: "/inspection", moduleKey: "inspections" },
+    { name: "Customer Record", icon: <Briefcase />, path: "/customer-record", moduleKey: "customer_records" },
     { name: "Notifications", icon: <AlertCircle />, path: "/notifications", moduleKey: "notifications" },
     { name: "Activity Screen", icon: <Activity />, path: "/activity", moduleKey: "activity" },
     // { name: "Chat", icon: <MessageSquare />, path: "/chat", moduleKey: "chat" },
