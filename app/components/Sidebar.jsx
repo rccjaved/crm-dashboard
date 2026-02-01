@@ -21,8 +21,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     { name: "Trustmark Audit", icon: <Settings />, path: "/trustmark", moduleKey: "trustmarks" },
     { name: "C3 Inspection", icon: <InspectIcon />, path: "/inspection", moduleKey: "inspections" },
     { name: "Customer Record", icon: <Briefcase />, path: "/customer-record", moduleKey: "customer_records" },
+    { name: "Leads", icon: <File />, path: "/leads", moduleKey: "leads" },
     { name: "Notifications", icon: <AlertCircle />, path: "/notifications", moduleKey: "notifications" },
     { name: "Activity Screen", icon: <Activity />, path: "/activity", moduleKey: "activity" },
+
     // { name: "Chat", icon: <MessageSquare />, path: "/chat", moduleKey: "chat" },
   ];
 

@@ -201,6 +201,51 @@ export const customerRecordsApiSlice = apiSlice.injectEndpoints({
   }),
 });
 
+export const leadsApiSlice = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    getLeads: builder.query({
+      query: (params) => ({
+        url: "/leads",
+        params,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.map((lead) => ({ type: "Lead", id: lead.id })),
+              { type: "Lead", id: "LIST" },
+            ]
+          : [{ type: "Lead", id: "LIST" }],
+    }),
+    getLeadById: builder.query({
+      query: (id) => `/leads/${id}`,
+      providesTags: (result, error, id) => [{ type: "Lead", id }],
+    }),
+    createLead: builder.mutation({
+      query: (leadData) => ({
+        url: "/leads/store",
+        method: "POST",
+        body: leadData,
+      }),
+      invalidatesTags: [{ type: "Lead", id: "LIST" }],
+    }),
+    updateLead: builder.mutation({
+      query: ({ id, ...leadData }) => ({
+        url: `/leads/${id}/update`,
+        method: "POST",
+        body: leadData,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Lead", id }],
+    }),
+    deleteLead: builder.mutation({
+      query: (id) => ({
+        url: `/leads/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: [{ type: "Lead", id: "LIST" }],
+    }),
+  }),
+});
+
 export const notificationsApiSlice = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getNotifications: builder.query({
@@ -265,3 +310,11 @@ export const {
   useUpdateCustomerRecordMutation,
   useDeleteCustomerRecordMutation,
 } = customerRecordsApiSlice;
+
+export const {
+  useGetLeadsQuery,
+  useGetLeadByIdQuery,
+  useCreateLeadMutation,
+  useUpdateLeadMutation,
+  useDeleteLeadMutation,
+} = leadsApiSlice;
