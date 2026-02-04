@@ -1,13 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useAddPropertyEvidenceMutation } from "@/services/api";
+import { useAddPropertyEvidenceMutation, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
 import { toast } from "react-toastify";
 
 const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
-  const [addPropertyEvidence, { isLoading }] = useAddPropertyEvidenceMutation();
+  const [addPropertyEvidence, { isLoading: isAddingEvidence }] = useAddPropertyEvidenceMutation();
+  const [updateLead, { isLoading: isUpdatingLead }] = useUpdateLeadMutation();
+  const { data: leadData, isLoading: isLoadingLead } = useGetLeadByIdQuery(leadId, { skip: !leadId || !isOpen });
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
+    // Lead fields
+    name: "",
+    email: "",
+    mobile: "",
+    address: "",
+    lead_date: "",
+    // Property evidence fields
     lead_id: leadId,
     lead_provider: "",
     property_ownership: "",
@@ -47,15 +56,21 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
     notes: "",
   });
 
-  // Update lead_id when leadId prop changes
+  // Update form when lead data is fetched
   useEffect(() => {
-    if (leadId) {
+    if (isOpen && leadData?.data) {
+      const lead = leadData.data;
       setFormData((prev) => ({
         ...prev,
+        name: lead.name || "",
+        email: lead.email || "",
+        mobile: lead.mobile || "",
+        address: lead.address || "",
+        lead_date: lead.created_at ? lead.created_at.split("T")[0] : "",
         lead_id: leadId,
       }));
     }
-  }, [leadId, isOpen]);
+  }, [leadData, leadId, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -118,22 +133,48 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
     }
 
     try {
-      // Prepare data - remove empty arrays
-      const submitData = { ...formData };
-      Object.keys(submitData).forEach((key) => {
-        if (Array.isArray(submitData[key]) && submitData[key].length === 0) {
-          submitData[key] = null;
+      // First, update the lead with the new information
+      const leadUpdateData = {
+        id: formData.lead_id,
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.mobile,
+        address: formData.address,
+      };
+
+      await updateLead(leadUpdateData).unwrap();
+      toast.success("Lead information updated");
+
+      // Then, prepare and submit property evidence data
+      const evidenceData = { ...formData };
+      
+      // Remove lead fields from evidence data
+      delete evidenceData.name;
+      delete evidenceData.email;
+      delete evidenceData.mobile;
+      delete evidenceData.address;
+      delete evidenceData.lead_date;
+
+      // Remove empty arrays
+      Object.keys(evidenceData).forEach((key) => {
+        if (Array.isArray(evidenceData[key]) && evidenceData[key].length === 0) {
+          evidenceData[key] = null;
         }
       });
 
-      // Ensure lead_id is included and is a number
-      submitData.lead_id = parseInt(submitData.lead_id);
+      // Ensure lead_id is a number
+      evidenceData.lead_id = parseInt(evidenceData.lead_id);
 
-      await addPropertyEvidence(submitData).unwrap();
+      await addPropertyEvidence(evidenceData).unwrap();
       toast.success("Property evidence added successfully!");
       onClose();
       setCurrentStep(1);
       setFormData({
+        name: "",
+        email: "",
+        mobile: "",
+        address: "",
+        lead_date: "",
         lead_id: leadId,
         lead_provider: "",
         property_ownership: "",
@@ -173,7 +214,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
         notes: "",
       });
     } catch (error) {
-      toast.error(error?.data?.message || "Failed to add property evidence");
+      toast.error(error?.data?.message || "Failed to submit");
     }
   };
 
@@ -195,9 +236,81 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
 
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="p-6">
+          {isLoadingLead ? (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-gray-500">Loading lead information...</p>
+            </div>
+          ) : (
+            <>
           {/* Step 1: Lead Provider Information */}
           {currentStep === 1 && (
             <div className="space-y-4">
+              <h3 className="text-lg font-semibold mb-4">Lead Information</h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Lead Date</label>
+                  <input
+                    type="date"
+                    name="lead_date"
+                    value={formData.lead_date}
+                    onChange={handleInputChange}
+                    disabled
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="e.g., William Hollins"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="e.g., williamhollis32@hotmail.com"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <input
+                    type="tel"
+                    name="mobile"
+                    value={formData.mobile}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 07895990665"
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Address</label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 15 Hart land Avenue, ST6 7NF"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  rows="2"
+                />
+              </div>
+
+              <hr className="my-6" />
+
               <h3 className="text-lg font-semibold mb-4">Lead Provider Information</h3>
 
               <div className="grid grid-cols-2 gap-4">
@@ -654,10 +767,10 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
             {currentStep === 3 ? (
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
                 className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
               >
-                <span>{isLoading ? "Submitting..." : "Submit"}</span>
+                <span>{isUpdatingLead || isAddingEvidence ? "Submitting..." : "Submit"}</span>
               </button>
             ) : (
               <button
@@ -670,6 +783,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose }) => {
               </button>
             )}
           </div>
+            </>
+          )}
         </form>
       </div>
     </div>
