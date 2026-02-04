@@ -243,6 +243,14 @@ export const leadsApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: [{ type: "Lead", id: "LIST" }],
     }),
+    addPropertyEvidence: builder.mutation({
+      query: (evidenceData) => ({
+        url: "/add-leads-property-detail-evidence",
+        method: "POST",
+        body: evidenceData,
+      }),
+      invalidatesTags: (result, error, { lead_id }) => [{ type: "Lead", id: lead_id }],
+    }),
   }),
 });
 
@@ -317,4 +325,5 @@ export const {
   useCreateLeadMutation,
   useUpdateLeadMutation,
   useDeleteLeadMutation,
+  useAddPropertyEvidenceMutation,
 } = leadsApiSlice;

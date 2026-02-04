@@ -6,10 +6,13 @@ import "react-toastify/dist/ReactToastify.css";
 import { useGetLeadsQuery, useDeleteLeadMutation } from "@/services/api";
 import { useState } from "react";
 import { Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import LeadPropertyEvidenceForm from "@/components/LeadPropertyEvidenceForm";
 
 export default function LeadsPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
+  const [selectedLeadId, setSelectedLeadId] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const { data, isLoading, isFetching, error } = useGetLeadsQuery({ per_page: 20, page });
   const [deleteLead] = useDeleteLeadMutation();
 
@@ -21,6 +24,16 @@ export default function LeadsPage() {
     } catch (err) {
       toast.error(err?.data?.message || "Failed to delete lead");
     }
+  };
+
+  const handleEyeClick = (leadId) => {
+    setSelectedLeadId(leadId);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setSelectedLeadId(null);
   };
 
   return (
@@ -75,8 +88,11 @@ export default function LeadsPage() {
                           <td className="px-4 sm:px-6 py-4 text-sm text-gray-500">{(lead.services || []).join(", ")}</td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
-                              {/* <button onClick={() => router.push(`/leads/${lead.id}`)} className="text-gray-600 hover:text-gray-900 p-1 rounded" title="View">
+                              <button onClick={() => handleEyeClick(lead.id)} className="text-gray-600 hover:text-gray-900 p-1 rounded" title="Add Property Evidence">
                                 <Eye className="w-4 h-4" />
+                              </button>
+                              {/* <button onClick={() => router.push(`/leads/${lead.id}`)} className="text-blue-600 hover:text-blue-900 p-1 rounded" title="View">
+                                <Edit className="w-4 h-4" />
                               </button> */}
                               <button onClick={() => router.push(`/edit-lead/${lead.id}`)} className="text-blue-600 hover:text-blue-900 p-1 rounded" title="Edit">
                                 <Edit className="w-4 h-4" />
@@ -121,6 +137,7 @@ export default function LeadsPage() {
         </div>
       </div>
       <ToastContainer position="top-right" />
+      <LeadPropertyEvidenceForm leadId={selectedLeadId} isOpen={isFormOpen} onClose={handleCloseForm} />
     </Layout>
   );
 }
