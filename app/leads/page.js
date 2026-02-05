@@ -6,13 +6,10 @@ import "react-toastify/dist/ReactToastify.css";
 import { useGetLeadsQuery, useDeleteLeadMutation } from "@/services/api";
 import { useState } from "react";
 import { Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight } from "lucide-react";
-import LeadPropertyEvidenceForm from "@/components/LeadPropertyEvidenceForm";
 
 export default function LeadsPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
-  const [selectedLeadId, setSelectedLeadId] = useState(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const { data, isLoading, isFetching, error } = useGetLeadsQuery({ per_page: 20, page });
   const [deleteLead] = useDeleteLeadMutation();
 
@@ -26,14 +23,9 @@ export default function LeadsPage() {
     }
   };
 
+  // Navigate to the property evidence page for the selected lead
   const handleEyeClick = (leadId) => {
-    setSelectedLeadId(leadId);
-    setIsFormOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setSelectedLeadId(null);
+    router.push(`/leads/${leadId}/property-evidence`);
   };
 
   return (
@@ -137,7 +129,6 @@ export default function LeadsPage() {
         </div>
       </div>
       <ToastContainer position="top-right" />
-      <LeadPropertyEvidenceForm leadId={selectedLeadId} isOpen={isFormOpen} onClose={handleCloseForm} />
     </Layout>
   );
 }
