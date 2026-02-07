@@ -21,6 +21,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     lead_provider: "",
     property_ownership: "",
     requested_measures: [],
+    proposed_measures: [],
     make_model_serial: "",
     data_plate: "",
     epc_link: "",
@@ -79,6 +80,24 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     tecnica: "",
     scaffolding_removed_date: "",
     rubbish_collected_date: "",
+    // EPC / numeric metrics new fields
+    start_sap: null,
+    end_sap: null,
+    number_metrics: {
+      number1: null,
+      number2: null,
+      number3: null,
+    },
+    epc_metrics: {
+      epc_rating: { previous: null, current: null, difference: null },
+      epc_area: { previous: null, current: null, difference: null },
+      loft_insulation: { previous: null, current: null, difference: null },
+      secondary_heating: { previous: null, current: null, difference: null },
+      cavity_wall_insulation: { previous: null, current: null, difference: null },
+      loft_ext_1: { previous: null, current: null, difference: null },
+      property_age: { previous: "", current: "", difference: null },
+    },
+    high_value_notes: "",
   });
 
   // Update form when lead data is fetched
@@ -93,6 +112,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         address: lead.address || "",
         lead_date: lead.created_at ? lead.created_at.split("T")[0] : "",
         lead_id: leadId,
+        // populate proposed_measures from lead.services
+        proposed_measures: lead.services || [],
       }));
     }
   }, [leadData, leadId, isOpen]);
@@ -142,12 +163,49 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     }
   };
 
+  // Handle nested JSON inputs like epc_metrics and number_metrics
+  const handleNestedInput = (parent, key, subkey, value, isNumeric = true) => {
+    setFormData((prev) => {
+      const parentObj = prev[parent] ? { ...prev[parent] } : {};
+      // If subkey is null, we are setting a direct value (e.g., number_metrics.number1)
+      if (subkey === null) {
+        const parsed = isNumeric && value !== "" ? parseFloat(value) : value;
+        parentObj[key] = parsed;
+        return { ...prev, [parent]: parentObj };
+      }
+
+      const item = parentObj[key] ? { ...parentObj[key] } : {};
+      const parsed = isNumeric && value !== "" ? parseFloat(value) : value;
+      item[subkey] = parsed;
+      // compute difference for numeric previous/current when both provided
+      if (item.previous !== undefined && item.current !== undefined) {
+        const a = parseFloat(item.previous);
+        const b = parseFloat(item.current);
+        if (!isNaN(a) && !isNaN(b)) item.difference = +(b - a).toFixed(2);
+        else item.difference = null;
+      }
+      parentObj[key] = item;
+      return { ...prev, [parent]: parentObj };
+    });
+  };
+
+  const saveProposedMeasures = async () => {
+    try {
+      // ensure lead_id available
+      if (!formData.lead_id) return;
+      // call updateLead to only update services on the lead
+      await updateLead({ id: formData.lead_id, services: formData.proposed_measures }).unwrap();
+      toast.success("Proposed measures saved");
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to save proposed measures");
+    }
+  };
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent submission unless user is on final step (step 4)
-    if (currentStep !== 4) {
-      setCurrentStep(4);
+    // Prevent submission unless user is on final step (step 5)
+    if (currentStep !== 5) {
+      setCurrentStep(5);
       return;
     }
 
@@ -180,6 +238,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         address: formData.address,
       };
 
+      console.log("Updating lead:", leadUpdateData);
       await updateLead(leadUpdateData).unwrap();
       toast.success("Lead information updated");
 
@@ -192,6 +251,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       delete evidenceData.mobile;
       delete evidenceData.address;
       delete evidenceData.lead_date;
+      // We do not send proposed_measures to evidence since it's stored on leads.services
+      delete evidenceData.proposed_measures;
 
       // Remove empty arrays
       Object.keys(evidenceData).forEach((key) => {
@@ -203,8 +264,16 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       // Ensure lead_id is a number
       evidenceData.lead_id = parseInt(evidenceData.lead_id);
 
-      await addPropertyEvidence(evidenceData).unwrap();
-      toast.success("Property evidence added successfully!");
+      // log payload so we can inspect in browser console / network
+      console.log("Submitting property evidence:", evidenceData);
+      try {
+        await addPropertyEvidence(evidenceData).unwrap();
+        toast.success("Property evidence added successfully!");
+      } catch (err) {
+        console.error("addPropertyEvidence error:", err);
+        toast.error(err?.data?.message || "Failed to add property evidence");
+        return; // stop further success flow
+      }
       onClose();
       setCurrentStep(1);
       setFormData({
@@ -275,6 +344,25 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         tecnica: "",
         scaffolding_removed_date: "",
         rubbish_collected_date: "",
+        // EPC / numeric metrics new fields
+        start_sap: null,
+        end_sap: null,
+        number_metrics: {
+          number1: null,
+          number2: null,
+          number3: null,
+        },
+        epc_metrics: {
+          epc_rating: { previous: null, current: null, difference: null },
+          epc_area: { previous: null, current: null, difference: null },
+          loft_insulation: { previous: null, current: null, difference: null },
+          secondary_heating: { previous: null, current: null, difference: null },
+          cavity_wall_insulation: { previous: null, current: null, difference: null },
+          loft_ext_1: { previous: null, current: null, difference: null },
+          property_age: { previous: "", current: "", difference: null },
+        },
+        high_value_notes: "",
+        proposed_measures: [],
       });
     } catch (error) {
       toast.error(error?.data?.message || "Failed to submit");
@@ -289,7 +377,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky bg-white">
         <div>
           <h2 className="text-xl font-bold">Lead Property Evidence</h2>
-          <p className="text-sm text-gray-600">Step {currentStep} of 4</p>
+          <p className="text-sm text-gray-600">Step {currentStep} of 5</p>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
           <X className="w-6 h-6" />
@@ -300,8 +388,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       <form
         onSubmit={handleSubmit}
         onKeyDown={(e) => {
-          // Prevent Enter from submitting the whole form on steps 1-3
-          if (e.key === "Enter" && currentStep !== 4) {
+          // Prevent Enter from submitting the whole form on steps before final
+          if (e.key === "Enter" && currentStep !== 5) {
             e.preventDefault();
           }
         }}
@@ -903,6 +991,134 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           </div>
         )}
 
+        {/* Step 5: EPC & Numeric Metrics */}
+        {currentStep === 5 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-4">EPC & Numeric Metrics</h3>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Proposed Measures (from Lead services)</label>
+              <textarea
+                value={Array.isArray(formData.proposed_measures) ? formData.proposed_measures.join(", ") : ""}
+                onChange={(e) => handleArrayInput("proposed_measures", e.target.value)}
+                onBlur={saveProposedMeasures}
+                placeholder="e.g., EWI, Loft, Boiler (comma-separated)"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                rows="2"
+              />
+              <p className="text-xs text-gray-500 mt-1">Edit and click outside the field to save proposed measures to the lead.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Start SAP</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="start_sap"
+                  value={formData.start_sap ?? ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, start_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">End SAP</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  name="end_sap"
+                  value={formData.end_sap ?? ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, end_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Number Metrics (Number1/2/3)</label>
+              <div className="grid grid-cols-3 gap-4 mt-2">
+                <input type="number" step="0.01" placeholder="Number1" value={formData.number_metrics?.number1 ?? ""} onChange={(e)=>handleNestedInput('number_metrics','number1',null,e.target.value,true)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="number" step="0.01" placeholder="Number2" value={formData.number_metrics?.number2 ?? ""} onChange={(e)=>handleNestedInput('number_metrics','number2',null,e.target.value,true)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                <input type="number" step="0.01" placeholder="Number3" value={formData.number_metrics?.number3 ?? ""} onChange={(e)=>handleNestedInput('number_metrics','number3',null,e.target.value,true)} className="px-3 py-2 border border-gray-300 rounded-md" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">EPC Metrics</label>
+              <div className="grid grid-cols-3 gap-4">
+                {/* epc_rating */}
+                <div>
+                  <div className="text-sm font-medium">EPC Rating</div>
+                  <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.epc_rating?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','epc_rating','previous',e.target.value,true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.epc_rating?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','epc_rating','current',e.target.value,true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.epc_rating?.difference ?? ""}</div>
+                </div>
+
+                {/* epc_area */}
+                <div>
+                  <div className="text-sm font-medium">EPC Area</div>
+                  <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.epc_area?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','epc_area','previous',e.target.value,true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.epc_area?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','epc_area','current',e.target.value,true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.epc_area?.difference ?? ""}</div>
+                </div>
+
+                {/* loft_insulation */}
+                <div>
+                  <div className="text-sm font-medium">Loft Insulation (mm)</div>
+                  <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.loft_insulation?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','loft_insulation','previous',e.target.value,true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.loft_insulation?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','loft_insulation','current',e.target.value,true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.loft_insulation?.difference ?? ""}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                {/* secondary_heating */}
+                <div>
+                  <div className="text-sm font-medium">Secondary Heating (prev/current)</div>
+                  <input type="number" step="1" placeholder="Previous" value={formData.epc_metrics?.secondary_heating?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','secondary_heating','previous',e.target.value,true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" step="1" placeholder="Current" value={formData.epc_metrics?.secondary_heating?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','secondary_heating','current',e.target.value,true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.secondary_heating?.difference ?? ""}</div>
+                </div>
+
+                {/* cavity_wall_insulation */}
+                <div>
+                  <div className="text-sm font-medium">Cavity Wall Insulation</div>
+                  <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.cavity_wall_insulation?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','cavity_wall_insulation','previous',e.target.value,true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.cavity_wall_insulation?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','cavity_wall_insulation','current',e.target.value,true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.cavity_wall_insulation?.difference ?? ""}</div>
+                </div>
+
+                {/* loft_ext_1 */}
+                <div>
+                  <div className="text-sm font-medium">Loft Ext 1</div>
+                  <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.loft_ext_1?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','loft_ext_1','previous',e.target.value,true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.loft_ext_1?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','loft_ext_1','current',e.target.value,true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.loft_ext_1?.difference ?? ""}</div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="text-sm font-medium">Property Age (previous/current)</div>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <input type="text" placeholder="Previous" value={formData.epc_metrics?.property_age?.previous ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','property_age','previous',e.target.value,false)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="text" placeholder="Current" value={formData.epc_metrics?.property_age?.current ?? ""} onChange={(e)=>handleNestedInput('epc_metrics','property_age','current',e.target.value,false)} className="px-3 py-2 border border-gray-300 rounded-md" />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700">High Value Notes</label>
+                <textarea
+                  name="high_value_notes"
+                  value={formData.high_value_notes}
+                  onChange={handleInputChange}
+                  placeholder="Additional notes for high-value leads"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                  rows="3"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer with Navigation */}
         <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-200">
           <button
@@ -916,7 +1132,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           </button>
 
           <div className="flex space-x-2">
-            {[1, 2, 3, 4].map((step) => (
+            {[1, 2, 3, 4, 5].map((step) => (
               <button
                 key={step}
                 type="button"
@@ -932,7 +1148,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             ))}
           </div>
 
-          {currentStep === 4 ? (
+          {currentStep === 5 ? (
             <button
               type="submit"
               disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
@@ -943,7 +1159,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           ) : (
             <button
               type="button"
-              onClick={() => setCurrentStep((prev) => Math.min(4, prev + 1))}
+              onClick={() => setCurrentStep((prev) => Math.min(5, prev + 1))}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
               <span>Next</span>
