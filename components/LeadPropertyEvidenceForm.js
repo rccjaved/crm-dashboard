@@ -5,6 +5,17 @@ import { useAddPropertyEvidenceMutation, useGetLeadByIdQuery, useUpdateLeadMutat
 import { toast } from "react-toastify";
 
 const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) => {
+  const FIXED_FLOOR_NAMES = [
+    "First floor area",
+    "Ground floor",
+    "Ext 1 First Floor",
+    "Ext 1 Ground Floor",
+    "Ext 2 First Floor",
+    "Ext 2 Ground Floor",
+    "Ext 3 First Floor",
+    "Ext 3 Ground Floor",
+    "Alley way Extension",
+  ];
   const [addPropertyEvidence, { isLoading: isAddingEvidence }] = useAddPropertyEvidenceMutation();
   const [updateLead, { isLoading: isUpdatingLead }] = useUpdateLeadMutation();
   const { data: leadData, isLoading: isLoadingLead } = useGetLeadByIdQuery(leadId, { skip: !leadId || !isOpen });
@@ -98,6 +109,31 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       property_age: { previous: "", current: "", difference: null },
     },
     high_value_notes: "",
+    // initialize fixed floor rows
+    floor_details: [
+      ...FIXED_FLOOR_NAMES.map((n) => ({ name: n, area: null, height: null, hlp: null, pw: null, notes: "" })),
+    ],
+    // Loft details (new fields requested)
+    loft_details: [
+      { name: "Main", area: null, type: "" },
+      { name: "Ext 1", area: null, type: "" },
+      { name: "Ext 2", area: null, type: "" },
+      { name: "Ext 3", area: null, type: "" },
+      { name: "Alleyway", area: null, type: "" },
+    ],
+    total_loft: null,
+    ba: null,
+
+    // Wall extension details
+    wall_ext_details: [
+      { name: "Ext 1", area: null, construction_type: "" },
+      { name: "Ext 2", area: null, construction_type: "" },
+    ],
+    solid_wall_area: null,
+    glazed_area: null,
+    wall_excluding_windows_pici: null,
+    total_wall_pici: null,
+    popt: null,
   });
 
   // Update form when lead data is fetched
@@ -189,6 +225,115 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     });
   };
 
+  // Floor details helpers
+  const DEFAULT_HLP = 5.9;
+  const DEFAULT_PW = 6.7;
+  const defaultAddition = DEFAULT_HLP * DEFAULT_PW; // 39.53
+
+  const addFloorRow = () => {
+    setFormData((prev) => ({
+      ...prev,
+      floor_details: [
+        ...(Array.isArray(prev.floor_details) ? prev.floor_details : []),
+        { name: "", area: null, height: null, hlp: null, pw: null, notes: "" },
+      ],
+    }));
+  };
+
+  const removeFloorRow = (index) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.floor_details) ? [...prev.floor_details] : [];
+      arr.splice(index, 1);
+      return { ...prev, floor_details: arr };
+    });
+    setTimeout(recalcFloorTotals, 0);
+  };
+
+  const updateFloorRow = (index, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.floor_details) ? [...prev.floor_details] : [];
+      const row = { ...(arr[index] || {}) };
+      row[key] = value === "" ? null : value;
+      arr[index] = row;
+      return { ...prev, floor_details: arr };
+    });
+    // Recalculate totals after change
+    setTimeout(recalcFloorTotals, 0);
+  };
+
+  const recalcFloorTotals = () => {
+    const rows = Array.isArray(formData.floor_details) ? formData.floor_details : [];
+    let totalEpc = 0;
+    let totalGround = 0;
+    let highest = null;
+    let hlpSum = 0;
+
+    rows.forEach((r) => {
+      const area = parseFloat(r.area) || 0;
+      const hlp = parseFloat(r.hlp);
+      const pw = parseFloat(r.pw);
+      const addition = (!isNaN(hlp) && !isNaN(pw)) ? hlp * pw : defaultAddition;
+      const effective = +(area + addition).toFixed(2);
+      totalEpc += effective;
+      if (/ground/i.test(r.name || "")) {
+        totalGround += effective;
+      }
+      if (highest === null || effective > highest) highest = effective;
+      if (!isNaN(hlp)) hlpSum += hlp;
+    });
+
+    const totalEpcRounded = +totalEpc.toFixed(2);
+    const totalGroundRounded = +totalGround.toFixed(2);
+    const highestRounded = highest === null ? null : +highest.toFixed(2);
+    const hlpRounded = +hlpSum.toFixed(2);
+    // heat demand total wall area approximated as 0.762 * total EPC (to match sample)
+    const heatDemand = +((totalEpcRounded * 0.762) || 0).toFixed(2);
+
+    setFormData((prev) => ({
+      ...prev,
+      total_epc_area: totalEpcRounded,
+      total_floor_area_excluding_rir: totalEpcRounded,
+      heat_demand_total_wall_area: heatDemand,
+      total_ground_floor_area: totalGroundRounded,
+      highest_floor_area: highestRounded,
+      total_hlp: hlpRounded,
+    }));
+  };
+
+  // Recalculate totals when floor rows change
+  useEffect(() => {
+    recalcFloorTotals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.floor_details]);
+
+  // Loft totals recalculation
+  const recalcLoftTotals = () => {
+    const rows = Array.isArray(formData.loft_details) ? formData.loft_details : [];
+    const total = rows.reduce((s, r) => s + (parseFloat(r.area) || 0), 0);
+    const totalRounded = +total.toFixed(2);
+    // BA approximated as 0.594 * total_loft (matches example: 80.59 -> ~47.88)
+    const ba = +(totalRounded * 0.594).toFixed(2);
+    setFormData((prev) => ({ ...prev, total_loft: totalRounded, ba }));
+  };
+
+  // Wall totals recalculation
+  const recalcWallTotals = () => {
+    const extRows = Array.isArray(formData.wall_ext_details) ? formData.wall_ext_details : [];
+    const extSum = extRows.reduce((s, r) => s + (parseFloat(r.area) || 0), 0);
+    const solid = parseFloat(formData.solid_wall_area) || 0;
+    const glazed = parseFloat(formData.glazed_area) || 0;
+    const wallExcl = +(solid - glazed).toFixed(2);
+    const totalPici = +(solid - extSum).toFixed(2);
+    setFormData((prev) => ({ ...prev, wall_excluding_windows_pici: wallExcl, total_wall_pici: totalPici }));
+  };
+
+  // Recalculate loft and wall totals when related fields change
+  useEffect(() => {
+    recalcLoftTotals();
+    recalcWallTotals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.loft_details, formData.wall_ext_details, formData.solid_wall_area, formData.glazed_area]);
+
   const saveProposedMeasures = async () => {
     try {
       // ensure lead_id available
@@ -203,9 +348,9 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent submission unless user is on final step (step 5)
-    if (currentStep !== 5) {
-      setCurrentStep(5);
+    // Prevent submission unless user is on final step (step 6)
+    if (currentStep !== 6) {
+      setCurrentStep(6);
       return;
     }
 
@@ -253,6 +398,11 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       delete evidenceData.lead_date;
       // We do not send proposed_measures to evidence since it's stored on leads.services
       delete evidenceData.proposed_measures;
+      // Ensure floor details and totals are included (they are in formData already)
+      // Convert empty floor_details to null so backend handles it consistently
+      if (Array.isArray(evidenceData.floor_details) && evidenceData.floor_details.length === 0) {
+        evidenceData.floor_details = null;
+      }
 
       // Remove empty arrays
       Object.keys(evidenceData).forEach((key) => {
@@ -362,6 +512,35 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           property_age: { previous: "", current: "", difference: null },
         },
         high_value_notes: "",
+        // Floor details and computed totals (Step 6)
+        floor_details: [
+          ...FIXED_FLOOR_NAMES.map((n) => ({ name: n, area: null, height: null, hlp: null, pw: null, notes: "" })),
+        ],
+        total_epc_area: null,
+        total_floor_area_excluding_rir: null,
+        heat_demand_total_wall_area: null,
+        total_ground_floor_area: null,
+        highest_floor_area: null,
+        total_hlp: null,
+        // loft and wall new fields reset
+        loft_details: [
+          { name: "Main", area: null, type: "" },
+          { name: "Ext 1", area: null, type: "" },
+          { name: "Ext 2", area: null, type: "" },
+          { name: "Ext 3", area: null, type: "" },
+          { name: "Alleyway", area: null, type: "" },
+        ],
+        total_loft: null,
+        ba: null,
+        wall_ext_details: [
+          { name: "Ext 1", area: null, construction_type: "" },
+          { name: "Ext 2", area: null, construction_type: "" },
+        ],
+        solid_wall_area: null,
+        glazed_area: null,
+        wall_excluding_windows_pici: null,
+        total_wall_pici: null,
+        popt: null,
         proposed_measures: [],
       });
     } catch (error) {
@@ -377,7 +556,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky bg-white">
         <div>
           <h2 className="text-xl font-bold">Lead Property Evidence</h2>
-          <p className="text-sm text-gray-600">Step {currentStep} of 5</p>
+          <p className="text-sm text-gray-600">Step {currentStep} of 6</p>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
           <X className="w-6 h-6" />
@@ -389,7 +568,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         onSubmit={handleSubmit}
         onKeyDown={(e) => {
           // Prevent Enter from submitting the whole form on steps before final
-          if (e.key === "Enter" && currentStep !== 5) {
+          if (e.key === "Enter" && currentStep !== 6) {
             e.preventDefault();
           }
         }}
@@ -1119,6 +1298,180 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           </div>
         )}
 
+        {/* Step 6: Floor Details & Totals */}
+        {currentStep === 6 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-4">Floor Details & Totals</h3>
+
+            <div className="space-y-2">
+              {(Array.isArray(formData.floor_details) ? formData.floor_details : []).map((row, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-3">
+                    <label className="block text-sm font-medium">Name</label>
+                    <input value={row.name || ""} onChange={(e)=>updateFloorRow(idx,'name',e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" readOnly={idx < FIXED_FLOOR_NAMES.length} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium">Area</label>
+                    <input type="number" step="0.01" value={row.area ?? ""} onChange={(e)=>updateFloorRow(idx,'area',e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium">Height</label>
+                    <input type="number" step="0.01" value={row.height ?? ""} onChange={(e)=>updateFloorRow(idx,'height',e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium">HLP</label>
+                    <input type="number" step="0.01" value={row.hlp ?? ""} onChange={(e)=>updateFloorRow(idx,'hlp',e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                  </div>
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium">PW</label>
+                    <input type="number" step="0.01" value={row.pw ?? ""} onChange={(e)=>updateFloorRow(idx,'pw',e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium">Notes</label>
+                    <input value={row.notes || ""} onChange={(e)=>updateFloorRow(idx,'notes',e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                  </div>
+                  <div className="col-span-12 text-right">
+                    {idx >= FIXED_FLOOR_NAMES.length ? (
+                      <button type="button" onClick={()=>{ setFormData(prev=>{ const arr = [...(prev.floor_details||[])]; arr.splice(idx,1); return {...prev, floor_details: arr };}); setTimeout(recalcFloorTotals,0); }} className="text-sm text-red-600">Remove</button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+
+              <div>
+                <button type="button" onClick={addFloorRow} className="px-3 py-1 bg-gray-200 rounded">Add Row</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium">Total EPC Area</label>
+                <input readOnly value={formData.total_epc_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Total Floor Area (Excl RIR)</label>
+                <input readOnly value={formData.total_floor_area_excluding_rir ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Total Ground Floor Area</label>
+                <input readOnly value={formData.total_ground_floor_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium">Highest Floor Area</label>
+                <input readOnly value={formData.highest_floor_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Total HLP</label>
+                <input readOnly value={formData.total_hlp ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">Heat Demand Total Wall Area</label>
+                <input readOnly value={formData.heat_demand_total_wall_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+            </div>
+
+            {/* New: Loft Details & Totals (requested) */}
+            <div className="mt-6">
+              <h4 className="text-md font-semibold mb-2">Loft Details</h4>
+              <div className="space-y-2">
+                {(Array.isArray(formData.loft_details) ? formData.loft_details : []).map((r, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-6">
+                      <label className="block text-sm font-medium">Name</label>
+                      <input value={r.name || ""} onChange={(e)=>{ const v = e.target.value; setFormData(prev=>{ const arr = [...(prev.loft_details||[])]; arr[i] = {...(arr[i]||{}), name: v}; return {...prev, loft_details: arr}; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                    </div>
+                    <div className="col-span-3">
+                      <label className="block text-sm font-medium">Area</label>
+                      <input type="number" step="0.01" value={r.area ?? ""} onChange={(e)=>{ const v = e.target.value; setFormData(prev=>{ const arr = [...(prev.loft_details||[])]; arr[i] = {...(arr[i]||{}), area: v === "" ? null : parseFloat(v)}; return {...prev, loft_details: arr}; }); setTimeout(recalcLoftTotals,0); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                    </div>
+                    <div className="col-span-3">
+                      <label className="block text-sm font-medium">Type</label>
+                      <input value={r.type || ""} onChange={(e)=>{ const v = e.target.value; setFormData(prev=>{ const arr = [...(prev.loft_details||[])]; arr[i] = {...(arr[i]||{}), type: v}; return {...prev, loft_details: arr}; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <button type="button" onClick={()=>{ setFormData(prev=>({ ...prev, loft_details: [...(prev.loft_details||[]), { name: "", area: null, type: "" }] })); setTimeout(recalcLoftTotals,0); }} className="px-3 py-1 bg-gray-200 rounded">Add Loft Row</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium">Total Loft</label>
+                  <input readOnly value={formData.total_loft ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">B/A</label>
+                  <input readOnly value={formData.ba ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">POPT (editable)</label>
+                  <input type="number" step="0.01" value={formData.popt ?? ""} onChange={(e)=>setFormData(prev=>({...prev, popt: e.target.value === "" ? null : parseFloat(e.target.value)}))} className="mt-1 block w-full px-3 py-2 border rounded" />
+                </div>
+              </div>
+            </div>
+
+            {/* New: Wall extension details and totals */}
+            <div className="mt-6">
+              <h4 className="text-md font-semibold mb-2">Wall Extension Details</h4>
+              <div className="space-y-2">
+                {(Array.isArray(formData.wall_ext_details) ? formData.wall_ext_details : []).map((r, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-5">
+                      <label className="block text-sm font-medium">Name</label>
+                      <input value={r.name || ""} onChange={(e)=>{ const v = e.target.value; setFormData(prev=>{ const arr = [...(prev.wall_ext_details||[])]; arr[i] = {...(arr[i]||{}), name: v}; return {...prev, wall_ext_details: arr}; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                    </div>
+                    <div className="col-span-3">
+                      <label className="block text-sm font-medium">Area</label>
+                      <input type="number" step="0.01" value={r.area ?? ""} onChange={(e)=>{ const v = e.target.value; setFormData(prev=>{ const arr = [...(prev.wall_ext_details||[])]; arr[i] = {...(arr[i]||{}), area: v === "" ? null : parseFloat(v)}; return {...prev, wall_ext_details: arr}; }); setTimeout(recalcWallTotals,0); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                    </div>
+                    <div className="col-span-4">
+                      <label className="block text-sm font-medium">Construction Type</label>
+                      <input value={r.construction_type || ""} onChange={(e)=>{ const v = e.target.value; setFormData(prev=>{ const arr = [...(prev.wall_ext_details||[])]; arr[i] = {...(arr[i]||{}), construction_type: v}; return {...prev, wall_ext_details: arr}; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <button type="button" onClick={()=>{ setFormData(prev=>({ ...prev, wall_ext_details: [...(prev.wall_ext_details||[]), { name: "", area: null, construction_type: "" }] })); setTimeout(recalcWallTotals,0); }} className="px-3 py-1 bg-gray-200 rounded">Add Wall Ext Row</button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium">Solid Wall Area</label>
+                  <input type="number" step="0.01" value={formData.solid_wall_area ?? ""} onChange={(e)=>setFormData(prev=>({...prev, solid_wall_area: e.target.value === "" ? null : parseFloat(e.target.value)}))} onBlur={()=>setTimeout(recalcWallTotals,0)} className="mt-1 block w-full px-3 py-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Glazed Area</label>
+                  <input type="number" step="0.01" value={formData.glazed_area ?? ""} onChange={(e)=>setFormData(prev=>({...prev, glazed_area: e.target.value === "" ? null : parseFloat(e.target.value)}))} onBlur={()=>setTimeout(recalcWallTotals,0)} className="mt-1 block w-full px-3 py-2 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">Wall Excluding Windows PICI</label>
+                  <input readOnly value={formData.wall_excluding_windows_pici ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium">Total Wall PICI</label>
+                  <input readOnly value={formData.total_wall_pici ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">(spare)</label>
+                  <input readOnly value={""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium">POPT (mirror)</label>
+                  <input readOnly value={formData.popt ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Footer with Navigation */}
         <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-200">
           <button
@@ -1132,7 +1485,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           </button>
 
           <div className="flex space-x-2">
-            {[1, 2, 3, 4, 5].map((step) => (
+            {[1, 2, 3, 4, 5, 6].map((step) => (
               <button
                 key={step}
                 type="button"
@@ -1148,7 +1501,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             ))}
           </div>
 
-          {currentStep === 5 ? (
+          {currentStep === 6 ? (
             <button
               type="submit"
               disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
@@ -1159,7 +1512,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           ) : (
             <button
               type="button"
-              onClick={() => setCurrentStep((prev) => Math.min(5, prev + 1))}
+              onClick={() => setCurrentStep((prev) => Math.min(6, prev + 1))}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
               <span>Next</span>
