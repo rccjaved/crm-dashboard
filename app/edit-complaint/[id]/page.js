@@ -17,12 +17,21 @@ export default function EditComplaintPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    project_id: "",
+    name: "",
     address: "",
+    phone: "",
+    email: "",
     description: "",
+    case_open_date: "",
     status: "",
-    assigned_to: "",
     expected_completion_date: "",
     review_testing_date: "",
+    photo: "",
+    review_status: "",
+    no_of_days: "",
+    office_notes: "",
+    assigned_to: "",
   });
 
   // Helper function to format date from API to DD/MM/YYYY
@@ -30,28 +39,27 @@ export default function EditComplaintPage() {
     if (!dateString) return "";
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "";
-
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
+    // Return yyyy-mm-dd for date inputs
+    return date.toISOString().slice(0, 10);
   };
 
   // Helper function to convert DD/MM/YYYY to ISO string for API
   const formatDateForAPI = (dateString) => {
     if (!dateString) return null;
-
-    const parts = dateString.split("/");
-    if (parts.length !== 3) return null;
-
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-    const year = parseInt(parts[2], 10);
-
-    const date = new Date(year, month, day);
+    // support either DD/MM/YYYY or YYYY-MM-DD
+    if (dateString.includes("/")) {
+      const parts = dateString.split("/");
+      if (parts.length !== 3) return null;
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const date = new Date(year, month, day);
+      if (isNaN(date.getTime())) return null;
+      return date.toISOString();
+    }
+    // assume yyyy-mm-dd or ISO
+    const date = new Date(dateString);
     if (isNaN(date.getTime())) return null;
-
     return date.toISOString();
   };
 
@@ -72,14 +80,23 @@ export default function EditComplaintPage() {
         const complaint = response.data.data;
 
         setFormData({
+          project_id: complaint.project_id ?? "",
+          name: complaint.name || "",
           address: complaint.address || "",
+          phone: complaint.phone || "",
+          email: complaint.email || "",
           description: complaint.description || "",
+          case_open_date: formatDateForInput(complaint.case_open_date) || "",
           status: complaint.status || "",
           assigned_to: complaint.assigned_to || "",
           expected_completion_date:
             formatDateForInput(complaint.expected_completion_date) || "",
           review_testing_date:
             formatDateForInput(complaint.review_testing_date) || "",
+          photo: complaint.photo || "",
+          review_status: complaint.review_status || "",
+          no_of_days: complaint.no_of_days || "",
+          office_notes: complaint.office_notes || "",
         });
       } catch (error) {
         console.error("Error fetching complaint:", error);
@@ -94,45 +111,31 @@ export default function EditComplaintPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
-    // Date input validation for DD/MM/YYYY format
-    if (name.includes("date")) {
-      // Allow only numbers and slashes
-      const cleanedValue = value.replace(/[^\d/]/g, "");
-
-      // Auto-format as user types
-      let formattedValue = cleanedValue;
-      if (
-        cleanedValue.length >= 2 &&
-        cleanedValue.length <= 3 &&
-        !cleanedValue.includes("/")
-      ) {
-        formattedValue = cleanedValue.slice(0, 2) + "/" + cleanedValue.slice(2);
-      } else if (
-        cleanedValue.length >= 5 &&
-        cleanedValue.length <= 6 &&
-        cleanedValue.split("/").length === 2
-      ) {
-        const parts = cleanedValue.split("/");
-        formattedValue =
-          parts[0] + "/" + parts[1].slice(0, 2) + "/" + parts[1].slice(2);
-      }
-
-      // Limit to 10 characters (DD/MM/YYYY)
-      if (formattedValue.length > 10) {
-        formattedValue = formattedValue.slice(0, 10);
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        [name]: formattedValue,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+    // For date fields (using native date input), set directly and recalc no_of_days
+    const dateFields = ["case_open_date", "expected_completion_date", "review_testing_date"];
+    if (dateFields.includes(name)) {
+      setFormData((prev) => {
+        const next = { ...prev, [name]: value };
+        // auto-calc no_of_days when both dates present
+        if (next.case_open_date && next.expected_completion_date) {
+          const d1 = new Date(next.case_open_date);
+          const d2 = new Date(next.expected_completion_date);
+          if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+            const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+            next.no_of_days = String(diff);
+          } else {
+            next.no_of_days = "";
+          }
+        }
+        return next;
+      });
+      return;
     }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -144,19 +147,14 @@ export default function EditComplaintPage() {
     }
 
     // Validate date formats
-    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (
-      formData.expected_completion_date &&
-      !dateRegex.test(formData.expected_completion_date)
-    ) {
-      toast.error("Expected completion date must be in DD/MM/YYYY format");
+    // Validate date fields are valid dates if present
+    const validateDate = (v) => (v ? !isNaN(new Date(v).getTime()) : true);
+    if (!validateDate(formData.expected_completion_date)) {
+      toast.error("Expected completion date is invalid");
       return;
     }
-    if (
-      formData.review_testing_date &&
-      !dateRegex.test(formData.review_testing_date)
-    ) {
-      toast.error("Review testing date must be in DD/MM/YYYY format");
+    if (!validateDate(formData.review_testing_date)) {
+      toast.error("Review testing date is invalid");
       return;
     }
 
@@ -164,16 +162,21 @@ export default function EditComplaintPage() {
 
     try {
       const payload = {
+        project_id: formData.project_id || null,
+        name: formData.name || null,
         address: formData.address,
+        phone: formData.phone || null,
+        email: formData.email || null,
         description: formData.description,
+        case_open_date: formatDateForAPI(formData.case_open_date),
         status: formData.status,
-        assigned_to: formData.assigned_to
-          ? parseInt(formData.assigned_to)
-          : null,
-        expected_completion_date: formatDateForAPI(
-          formData.expected_completion_date
-        ),
+        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to) : null,
+        expected_completion_date: formatDateForAPI(formData.expected_completion_date),
         review_testing_date: formatDateForAPI(formData.review_testing_date),
+        review_status: formData.review_status || null,
+        no_of_days: formData.no_of_days || null,
+        office_notes: formData.office_notes || null,
+        photo: formData.photo || null,
       };
 
       const response = await axiosClient.put(
@@ -226,7 +229,21 @@ export default function EditComplaintPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Address */}
+                {/* Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Address
@@ -256,20 +273,102 @@ export default function EditComplaintPage() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Case Open Date</label>
+                  <input
+                    type="date"
+                    name="case_open_date"
+                    value={formData.case_open_date}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Review Status</label>
+                  <select
+                    name="review_status"
+                    value={formData.review_status}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Select Review Status</option>
+                    <option value="not_started">Not Started</option>
+                    <option value="in_review">In Review</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">No. of Days</label>
+                  <input
+                    type="text"
+                    name="no_of_days"
+                    value={formData.no_of_days}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Photo URL</label>
+                  <input
+                    type="text"
+                    name="photo"
+                    value={formData.photo}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Office Notes</label>
+                <textarea
+                  name="office_notes"
+                  value={formData.office_notes}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                />
+              </div>
                {/* Expected Completion Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Expected Completion Date
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   name="expected_completion_date"
                   value={formData.expected_completion_date}
                   onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
-               
               </div>
 
               {/* Review Testing Date */}
@@ -278,14 +377,12 @@ export default function EditComplaintPage() {
                   Review Testing Date
                 </label>
                 <input
-                  type="text"
+                  type="date"
                   name="review_testing_date"
                   value={formData.review_testing_date}
                   onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
-              
               </div>
 
               {/* Status */}

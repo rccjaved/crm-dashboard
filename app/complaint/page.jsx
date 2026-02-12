@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import { Plus, ChevronLeft, ChevronRight, Edit, Trash2, Eye } from "lucide-react";
@@ -23,10 +23,13 @@ export default function ComplaintPage() {
   );
   const [pagination, setLocalPagination] = useState({
     total: 0,
-    per_page: 15,
+    per_page: 10,
     current_page: 1,
     last_page: 1,
   });
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const fileInputRef = useRef(null);
 
   // Format date
   const formatDate = (dateString) => {
@@ -39,23 +42,37 @@ export default function ComplaintPage() {
   };
 
   // Fetch Complaints
-  const fetchComplaints = async (page = 1) => {
+  const fetchComplaints = async (page = 1, search = "") => {
     try {
       dispatch(setLoading(true));
-      const res = await axiosClient.get(`/complaints?page=${page}`);
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("per_page", 10);
+      if (search.trim()) {
+        params.append("q", search);
+      }
+      const res = await axiosClient.get(`/complaints?${params.toString()}`);
 
       // Transform data - include photo from API response
       const formatted = res?.data?.data?.map((item, index) => ({
         id: item.id,
         number: (page - 1) * res.data.meta.per_page + index + 1,
+        project_id: item.project_id,
+        name: item.name,
         address: item.address,
         description: item.description,
+        phone: item.phone,
+        email: item.email,
         photo: item.photo, // Add photo from API
-        registered_at: formatDate(item.registered_at),
+        case_open_date: item.case_open_date,
+        registered_at: formatDate(item.case_open_date || item.created_at),
         expected_completion_date: formatDate(item.expected_completion_date),
         review_testing_date: formatDate(item.review_testing_date),
+        review_status: item.review_status,
+        no_of_days: item.no_of_days,
+        office_notes: item.office_notes,
         status: item.status,
-        assigned_to: item.assigned_to_user?.full_name || "N/A",
+        assigned_to: item.assigned_to || "N/A",
         assigned_to_id: item.assigned_to,
         created_by_user: item.created_by_user,
       }));
@@ -78,8 +95,8 @@ export default function ComplaintPage() {
   };
 
   useEffect(() => {
-    fetchComplaints();
-  }, []);
+    fetchComplaints(1, searchQuery);
+  }, [searchQuery]);
 
   // Handle photo preview in new tab
   const handlePhotoPreview = (photoUrl, complaintId) => {
@@ -92,9 +109,35 @@ export default function ComplaintPage() {
     window.open(photoUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const handleCsvUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleCsvSelected = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setIsUploadingCsv(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await axiosClient.post('/complaints/import-csv', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.success(res?.data?.message || 'Import completed');
+      // refresh list with current search
+      fetchComplaints(1, searchQuery);
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'CSV import failed';
+      toast.error(msg);
+    } finally {
+      setIsUploadingCsv(false);
+      e.target.value = null;
+    }
+  };
+
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.last_page) {
-      fetchComplaints(newPage);
+      fetchComplaints(newPage, searchQuery);
     }
   };
 
@@ -138,7 +181,7 @@ export default function ComplaintPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   Users Complaint
@@ -148,13 +191,37 @@ export default function ComplaintPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => router.push("/add-complaint")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center w-full sm:w-auto justify-center"
-              >
-                <Plus className="w-5 h-5 text-white mr-2" />
-                Add Complaint
-              </button>
+              <div className="flex flex-col md:flex-row gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="Search by address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+                <button
+                  onClick={() => router.push("/add-complaint")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center"
+                >
+                  <Plus className="w-5 h-5 text-white mr-2" />
+                  Add Complaint
+                </button>
+
+                <button
+                  onClick={handleCsvUploadClick}
+                  disabled={isUploadingCsv}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center"
+                >
+                  {isUploadingCsv ? 'Uploading...' : 'Add CSV'}
+                </button>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  ref={fileInputRef}
+                  onChange={handleCsvSelected}
+                  className="hidden"
+                />
+              </div>
             </div>
           </div>
 
@@ -178,10 +245,22 @@ export default function ComplaintPage() {
                           Address
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Name
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Phone
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Complaint Information
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Photo
+                        </th>
+                        {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Review Status
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Date of Complaint
@@ -191,7 +270,7 @@ export default function ComplaintPage() {
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Review Date
-                        </th>
+                        </th> */}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
@@ -211,6 +290,15 @@ export default function ComplaintPage() {
                             <div className="line-clamp-2">{complaint.address}</div>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                            <div className="line-clamp-1">{complaint.name || 'N/A'}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                            <div className="line-clamp-1">{complaint.phone || 'N/A'}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
+                            <div className="line-clamp-1">{complaint.email || 'N/A'}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
                             <div className="line-clamp-2">{complaint.description}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -227,6 +315,9 @@ export default function ComplaintPage() {
                               <span className="text-gray-400 text-sm">No photo</span>
                             )}
                           </td>
+                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {complaint.review_status || 'N/A'}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {complaint.registered_at}
                           </td>
@@ -235,7 +326,7 @@ export default function ComplaintPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {complaint.review_testing_date}
-                          </td>
+                          </td> */}
                           <td className="px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(complaint.status)}
                           </td>

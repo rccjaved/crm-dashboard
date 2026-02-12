@@ -11,13 +11,20 @@ export default function CreateComplaintPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
+    project_id: "",
+    name: "",
     address: "",
+    phone: "",
+    email: "",
     description: "",
+    case_open_date: new Date().toISOString().slice(0,10),
     status: "pending",
     expected_completion_date: "",
     review_testing_date: "",
-    photo: null,
+    photo: "",
     review_status: "not_started",
+    no_of_days: "",
+    office_notes: "",
     assigned_to: "",
   });
 
@@ -25,6 +32,25 @@ export default function CreateComplaintPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // When expected_completion_date changes, compute no_of_days from case_open_date
+    if (name === "expected_completion_date") {
+      setFormData((prev) => {
+        const next = { ...prev, [name]: value };
+        if (next.case_open_date && next.expected_completion_date) {
+          const d1 = new Date(next.case_open_date);
+          const d2 = new Date(next.expected_completion_date);
+          if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+            const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+            next.no_of_days = String(diff);
+          } else {
+            next.no_of_days = "";
+          }
+        }
+        return next;
+      });
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -46,7 +72,11 @@ export default function CreateComplaintPage() {
       const submitData = new FormData();
 
       // Required fields
+        submitData.append("project_id", formData.project_id);
+        submitData.append("name", formData.name);
       submitData.append("address", formData.address);
+        submitData.append("phone", formData.phone);
+        submitData.append("email", formData.email);
       submitData.append("description", formData.description);
       submitData.append("status", formData.status);
       submitData.append(
@@ -54,7 +84,11 @@ export default function CreateComplaintPage() {
         formData.expected_completion_date
       );
       submitData.append("review_testing_date", formData.review_testing_date);
-      submitData.append("photo", formData.photo);
+        submitData.append("case_open_date", formData.case_open_date);
+        submitData.append("photo", formData.photo);
+        submitData.append("review_status", formData.review_status);
+        submitData.append("no_of_days", formData.no_of_days);
+        submitData.append("office_notes", formData.office_notes);
       submitData.append("review_status", formData.review_status);
       submitData.append("assigned_to", formData.assigned_to);
 
@@ -70,7 +104,9 @@ export default function CreateComplaintPage() {
       });
 
       toast.success("Complaint created successfully!");
-      router.push("/complaint");
+      setTimeout(() => {
+        router.push("/complaint");
+      }, 1500);
     } catch (error) {
       console.error("Error creating complaint:", error);
       const errorMessage =
@@ -98,6 +134,19 @@ export default function CreateComplaintPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              placeholder="Enter name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -112,6 +161,32 @@ export default function CreateComplaintPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               required
             />
+          </div>
+
+          {/* Phone & Email */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+              <input
+                type="text"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                placeholder="Enter phone"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                placeholder="Enter email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              />
+            </div>
           </div>
 
           {/* Complaint Description */}
@@ -149,6 +224,33 @@ export default function CreateComplaintPage() {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
+
+          {/* Case Open Date (auto) & No. of Days (auto-calculated) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Case Open Date</label>
+              <input
+                type="date"
+                name="case_open_date"
+                value={formData.case_open_date}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                disabled
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">No. of Days</label>
+              <input
+                type="text"
+                name="no_of_days"
+                value={formData.no_of_days}
+                onChange={handleInputChange}
+                placeholder="Auto-calculated"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50"
+                readOnly
+              />
+            </div>
+          </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

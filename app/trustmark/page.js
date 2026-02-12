@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import {
@@ -28,6 +28,10 @@ export default function TrustmarkPage() {
     (state) => state.trustmark
   );
 
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const csvInputRef = useRef(null);
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -39,10 +43,16 @@ export default function TrustmarkPage() {
   };
 
   // Fetch trustmarks
-  const fetchTrustmarks = async (page = 1) => {
+  const fetchTrustmarks = async (page = 1, search = "") => {
     try {
       dispatch(setLoading(true));
-      const response = await axiosClient.get(`/trust-mark-audit?page=${page}`);
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("per_page", 10);
+      if (search.trim()) {
+        params.append("q", search);
+      }
+      const response = await axiosClient.get(`/trust-mark-audit?${params.toString()}`);
 
       const transformedTrustmarks = response?.data?.data?.map(
         (item, index) => ({
@@ -50,13 +60,22 @@ export default function TrustmarkPage() {
           number: (page - 1) * response.data.meta.per_page + index + 1,
           address: item.address,
           description: item.description,
-          photo: item.photo, // Add photo from API
-          registered_at: formatDate(item.registered_at),
+          // backend returns `photos` as a string (possibly comma-separated).
+          photo: item.photos
+            ? (typeof item.photos === 'string' && item.photos.includes(',')
+                ? item.photos.split(',')[0].trim()
+                : item.photos)
+            : null,
+          case_open_date: item.case_open_date,
+          registered_at: formatDate(item.case_open_date || item.created_at),
           expected_completion_date: formatDate(item.expected_completion_date),
           review_testing_date: formatDate(item.review_testing_date),
           status: item.status,
-          assigned_to: item.assigned_to_user?.full_name || "N/A",
+          assigned_to: item.assigned_to || "N/A",
           review_status: item.review_status,
+          seven_days_deadline: item['7_days_deadline'],
+          days_left: item.days_left,
+          notes: item.notes,
         })
       );
 
@@ -75,12 +94,12 @@ export default function TrustmarkPage() {
   };
 
   useEffect(() => {
-    fetchTrustmarks();
-  }, []);
+    fetchTrustmarks(1, searchQuery);
+  }, [searchQuery]);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.last_page) {
-      fetchTrustmarks(newPage);
+      fetchTrustmarks(newPage, searchQuery);
     }
   };
 
@@ -97,6 +116,28 @@ export default function TrustmarkPage() {
 
     // Simple new tab open - direct image URL
     window.open(photoUrl, "_blank", "noopener,noreferrer");
+  };
+
+  // CSV import handler
+  const handleCsvSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await axiosClient.post(`/trust-mark-audit/import-csv`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(res.data?.message || "CSV imported successfully");
+      // refresh list with current search
+      fetchTrustmarks(1, searchQuery);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "CSV import failed");
+    } finally {
+      setCsvUploading(false);
+      e.target.value = "";
+    }
   };
 
   // const handleDelete = async (trustmarkId) => {
@@ -140,7 +181,7 @@ export default function TrustmarkPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   Trustmark Audit
@@ -149,14 +190,40 @@ export default function TrustmarkPage() {
                   Manage Trustmark Audits and their status.
                 </p>
               </div>
-              <button
-                onClick={() => router.push("/add-trustmark")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
-              >
-                <Plus className="w-5 h-5 text-white mr-2" />
-                Add Trustmark
-              </button>
+              <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                <input
+                  type="text"
+                  placeholder="Search by address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => csvInputRef.current?.click()}
+                    disabled={csvUploading}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+                  >
+                    <Plus className="w-5 h-5 text-white mr-2" />
+                    {csvUploading ? 'Uploading...' : 'Add CSV'}
+                  </button>
+                  <button
+                    onClick={() => router.push("/add-trustmark")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+                  >
+                    <Plus className="w-5 h-5 text-white mr-2" />
+                    Add Trustmark
+                  </button>
+                </div>
+              </div>
             </div>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              ref={csvInputRef}
+              onChange={handleCsvSelected}
+              className="hidden"
+            />
           </div>
 
           {/* Table */}
@@ -189,6 +256,9 @@ export default function TrustmarkPage() {
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Expected Completion
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Days Left
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Review Date
@@ -245,6 +315,9 @@ export default function TrustmarkPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {trustmark.expected_completion_date}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {trustmark.days_left ?? 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {trustmark.review_testing_date}

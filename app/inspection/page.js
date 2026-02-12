@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
 import { Plus, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react";
@@ -21,11 +21,39 @@ export default function InspectionPage() {
     (state) => state.inspection
   );
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [csvUploading, setCsvUploading] = useState(false);
+  const csvInputRef = useRef(null);
+
+  const handleCsvSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await axiosClient.post(`/c3-reports/import-csv`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success(res.data?.message || "CSV imported successfully");
+      fetchInspections(1, searchQuery);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "CSV import failed");
+    } finally {
+      setCsvUploading(false);
+      e.target.value = "";
+    }
+  };
+
   // Fetch inspections
-  const fetchInspections = async (page = 1) => {
+  const fetchInspections = async (page = 1, search = "") => {
     try {
       dispatch(setLoading(true));
-      const response = await axiosClient.get(`/c3-reports?page=${page}`);
+      const params = new URLSearchParams();
+      params.append("page", page);
+      params.append("per_page", 10);
+      if (search) params.append("q", search);
+      const response = await axiosClient.get(`/c3-reports?${params.toString()}`);
 
       dispatch(
         setInspections({
@@ -41,13 +69,19 @@ export default function InspectionPage() {
     }
   };
 
+  // live search with debounce
+  useEffect(() => {
+    const t = setTimeout(() => fetchInspections(1, searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchInspections();
   }, []);
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.last_page) {
-      fetchInspections(newPage);
+      fetchInspections(newPage, searchQuery);
     }
   };
 
@@ -102,13 +136,37 @@ export default function InspectionPage() {
                   Manage system inspection and their permissions.
                 </p>
               </div>
-              <button
-                onClick={() => router.push("/add-inspection")}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
-              >
-                <Plus className="w-5 h-5 text-white mr-2" />
-                Add Inspection
-              </button>
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Search by address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="px-3 py-2 border rounded-md w-64"
+                />
+                <button
+                  onClick={() => csvInputRef.current?.click()}
+                  disabled={csvUploading}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+                >
+                  <Plus className="w-5 h-5 text-white mr-2" />
+                  {csvUploading ? 'Uploading...' : 'Add CSV'}
+                </button>
+                <button
+                  onClick={() => router.push("/add-inspection")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+                >
+                  <Plus className="w-5 h-5 text-white mr-2" />
+                  Add Inspection
+                </button>
+              </div>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                ref={csvInputRef}
+                onChange={handleCsvSelected}
+                className="hidden"
+              />
             </div>
           </div>
 
@@ -141,6 +199,9 @@ export default function InspectionPage() {
                           Expected Date
                         </th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Days Left
+                        </th>
+                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -167,6 +228,9 @@ export default function InspectionPage() {
                         
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {inspection.expected_completion_date || "N/A"}
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {inspection.days_left !== undefined && inspection.days_left !== null && inspection.days_left !== "" ? inspection.days_left : "-"}
                           </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">

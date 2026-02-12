@@ -25,18 +25,32 @@ export default function AddInspectionPage() {
     report_result: "",
     issue_field: "",
     assignment_status: "",
-    photo_url: null,
+    date_assigned: new Date().toISOString().slice(0, 10),
     expected_completion_date: "",
-    resolved_at: null,
+    assigned_to_tecnika: false,
+    days_left: "",
+    resolved_at: "",
     assigned_to: "",
+    photo: "",
   });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const next = { ...prev, [name]: value };
+      // auto-calc days_left when both dates present
+      if ((name === "date_assigned" || name === "expected_completion_date") && next.date_assigned && next.expected_completion_date) {
+        const d1 = new Date(next.date_assigned);
+        const d2 = new Date(next.expected_completion_date);
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+          const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+          next.days_left = String(diff);
+        } else {
+          next.days_left = "";
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -45,12 +59,20 @@ export default function AddInspectionPage() {
 
     try {
       const apiData = {
-        ...formData,
         project_id: formData.project_id ? parseInt(formData.project_id) : null,
-        assigned_to: formData.assigned_to
-          ? parseInt(formData.assigned_to)
-          : null,
+        address: formData.address,
+        description: formData.description,
+        report_result: formData.report_result,
+        issue_field: formData.issue_field,
+        status: formData.status,
+        assignment_status: formData.assignment_status,
+        date_assigned: formData.date_assigned || null,
+        expected_completion_date: formData.expected_completion_date || null,
+        assigned_to_tecnika: !!formData.assigned_to_tecnika,
+        days_left: formData.days_left || null,
         resolved_at: formData.resolved_at || null,
+        assigned_to: formData.assigned_to || null,
+        photo: formData.photo || null,
       };
 
       const response = await axiosClient.post("/c3-reports/store", apiData);
@@ -211,6 +233,44 @@ export default function AddInspectionPage() {
               <option value="assigned">Assigned</option>
               <option value="unassigned">Unassigned</option>
             </select>
+          </div>
+
+          {/* Date Assigned */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date Assigned
+            </label>
+            <input
+              type="date"
+              name="date_assigned"
+              value={formData.date_assigned}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            />
+          </div>
+
+          {/* Assigned To Tecnika */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              name="assigned_to_tecnika"
+              checked={!!formData.assigned_to_tecnika}
+              onChange={(e) => setFormData(prev => ({...prev, assigned_to_tecnika: e.target.checked}))}
+            />
+            <label className="text-sm text-gray-700">Assigned To Tecnica</label>
+          </div>
+
+          {/* Days Left (auto-calculated) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
+            <input type="text" name="days_left" value={formData.days_left} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+          </div>
+
+          {/* Photo URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Photo (URL)</label>
+            <input type="text" name="photo" value={formData.photo} onChange={handleInputChange} placeholder="https://..." className="w-full px-3 py-2 border rounded" />
           </div>
 
           {/* Assigned To (User ID) */}

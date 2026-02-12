@@ -23,39 +23,43 @@ export default function EditTrustmarkPage() {
     address: "",
     description: "",
     status: "",
+    photos: "",
+    case_open_date: "",
     expected_completion_date: "",
     review_testing_date: "",
+    seven_days_deadline: false,
+    days_left: "",
+    review_status: "",
+    assigned_to: "",
+    notes: "",
   });
   const [photos, setPhotos] = useState([]);
   const [existingPhotos, setExistingPhotos] = useState([]);
 
-  // Helper function to format date from API to DD/MM/YYYY
+  // Helper function to format date for input (yyyy-mm-dd)
   const formatDateForInput = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "";
-
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
+    return date.toISOString().slice(0, 10);
   };
 
-  // Helper function to convert DD/MM/YYYY to ISO string for API
+  // Helper function to convert input date to ISO string for API
   const formatDateForAPI = (dateString) => {
     if (!dateString) return null;
-
-    const parts = dateString.split("/");
-    if (parts.length !== 3) return null;
-
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-    const year = parseInt(parts[2], 10);
-
-    const date = new Date(year, month, day);
+    // accept yyyy-mm-dd or dd/mm/yyyy
+    if (dateString.includes("/")) {
+      const parts = dateString.split("/");
+      if (parts.length !== 3) return null;
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      const date = new Date(year, month, day);
+      if (isNaN(date.getTime())) return null;
+      return date.toISOString();
+    }
+    const date = new Date(dateString);
     if (isNaN(date.getTime())) return null;
-
     return date.toISOString();
   };
 
@@ -72,10 +76,21 @@ export default function EditTrustmarkPage() {
           address: trustmark.address || "",
           description: trustmark.description || "",
           status: trustmark.status || "",
+          photos: trustmark.photos
+            ? Array.isArray(trustmark.photos)
+                ? trustmark.photos.map((p) => (p?.url ? p.url : p)).join(",")
+                : trustmark.photos
+            : "",
+          case_open_date: formatDateForInput(trustmark.case_open_date) || "",
           expected_completion_date:
             formatDateForInput(trustmark.expected_completion_date) || "",
           review_testing_date:
             formatDateForInput(trustmark.review_testing_date) || "",
+          seven_days_deadline: !!(trustmark['7_days_deadline'] ?? false),
+          days_left: trustmark.days_left ?? "",
+          review_status: trustmark.review_status || "",
+          assigned_to: trustmark.assigned_to || "",
+          notes: trustmark.notes || "",
         });
 
         // Agar existing photos hain to set karein
@@ -97,45 +112,32 @@ export default function EditTrustmarkPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
-    // Date input validation for DD/MM/YYYY format
-    if (name.includes("date")) {
-      // Allow only numbers and slashes
-      const cleanedValue = value.replace(/[^\d/]/g, "");
-
-      // Auto-format as user types
-      let formattedValue = cleanedValue;
-      if (
-        cleanedValue.length >= 2 &&
-        cleanedValue.length <= 3 &&
-        !cleanedValue.includes("/")
-      ) {
-        formattedValue = cleanedValue.slice(0, 2) + "/" + cleanedValue.slice(2);
-      } else if (
-        cleanedValue.length >= 5 &&
-        cleanedValue.length <= 6 &&
-        cleanedValue.split("/").length === 2
-      ) {
-        const parts = cleanedValue.split("/");
-        formattedValue =
-          parts[0] + "/" + parts[1].slice(0, 2) + "/" + parts[1].slice(2);
-      }
-
-      // Limit to 10 characters (DD/MM/YYYY)
-      if (formattedValue.length > 10) {
-        formattedValue = formattedValue.slice(0, 10);
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        [name]: formattedValue,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+    const dateFields = ["case_open_date", "expected_completion_date", "review_testing_date"];
+    if (dateFields.includes(name)) {
+      setFormData((prev) => {
+        const next = { ...prev, [name]: value };
+        // auto-calc days_left when both dates present
+        if (next.case_open_date && next.expected_completion_date) {
+          const d1 = new Date(next.case_open_date);
+          const d2 = new Date(next.expected_completion_date);
+          if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+            const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+            next.days_left = String(diff);
+          } else {
+            next.days_left = "";
+          }
+        }
+        return next;
+      });
+      return;
     }
+
+    if (e.target.type === "checkbox") {
+      setFormData((prev) => ({ ...prev, [name]: e.target.checked }));
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
@@ -146,18 +148,20 @@ export default function EditTrustmarkPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate date formats
-    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    // Validate date formats only when user entered slash-separated dates (DD/MM/YYYY).
+    const slashDateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (
       formData.expected_completion_date &&
-      !dateRegex.test(formData.expected_completion_date)
+      formData.expected_completion_date.includes("/") &&
+      !slashDateRegex.test(formData.expected_completion_date)
     ) {
       toast.error("Expected completion date must be in DD/MM/YYYY format");
       return;
     }
     if (
       formData.review_testing_date &&
-      !dateRegex.test(formData.review_testing_date)
+      formData.review_testing_date.includes("/") &&
+      !slashDateRegex.test(formData.review_testing_date)
     ) {
       toast.error("Review testing date must be in DD/MM/YYYY format");
       return;
@@ -168,12 +172,21 @@ export default function EditTrustmarkPage() {
     try {
       const formDataToSend = new FormData();
 
-      // Text fields add karein
+      // Text fields
       formDataToSend.append("address", formData.address);
       formDataToSend.append("description", formData.description);
       formDataToSend.append("status", formData.status);
+      // Photos: expect a comma-separated list or single http(s) url(s)
+      if (formData.photos) {
+        formDataToSend.append("photos", formData.photos);
+      }
+      formDataToSend.append("assigned_to", formData.assigned_to);
+      formDataToSend.append("notes", formData.notes);
 
-      // Dates add karein
+      // Dates
+      if (formData.case_open_date) {
+        formDataToSend.append("case_open_date", formatDateForAPI(formData.case_open_date));
+      }
       if (formData.expected_completion_date) {
         formDataToSend.append(
           "expected_completion_date",
@@ -187,7 +200,11 @@ export default function EditTrustmarkPage() {
         );
       }
 
-      // Photos add karein
+      // Flags and derived
+      formDataToSend.append("7_days_deadline", formData.seven_days_deadline ? 1 : 0);
+      formDataToSend.append("days_left", formData.days_left);
+
+      // Photos
       photos.forEach((photo) => {
         formDataToSend.append("photos[]", photo);
       });
@@ -202,7 +219,7 @@ export default function EditTrustmarkPage() {
         }
       );
 
-      // Redux mein update karein
+      // Update in Redux
       dispatch(updateTrustmark(response.data.data));
 
       toast.success("Trustmark updated successfully!");
@@ -285,35 +302,32 @@ export default function EditTrustmarkPage() {
               </div>
 
                  {/* Expected Completion Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expected Completion Date
-                </label>
-                <input
-                  type="text"
-                  name="expected_completion_date"
-                  value={formData.expected_completion_date}
-                  onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-            
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Expected Completion Date
+                  </label>
+                  <input
+                    type="date"
+                    name="expected_completion_date"
+                    value={formData.expected_completion_date}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
 
-              {/* Review Testing Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Review Testing Date 
-                </label>
-                <input
-                  type="text"
-                  name="review_testing_date"
-                  value={formData.review_testing_date}
-                  onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-              </div>
+                {/* Review Testing Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Review Testing Date 
+                  </label>
+                  <input
+                    type="date"
+                    name="review_testing_date"
+                    value={formData.review_testing_date}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
 
               {/* Status */}
               <div>
@@ -334,6 +348,39 @@ export default function EditTrustmarkPage() {
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
+                  <input type="text" name="days_left" value={formData.days_left} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" name="seven_days_deadline" checked={formData.seven_days_deadline} onChange={handleInputChange} />
+                  <label className="text-sm text-gray-700">7 days deadline</label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+                <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photos (http(s) URL, comma separated)</label>
+                <input
+                  type="text"
+                  name="photos"
+                  value={formData.photos}
+                  onChange={handleInputChange}
+                  placeholder="https://example.com/photo1.jpg, https://..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
               </div>
 
            

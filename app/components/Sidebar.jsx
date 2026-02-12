@@ -15,13 +15,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
   // Other menu items with their module keys
   const otherMenuItems = [
-    { name: "All Projects", icon: <Projector />, path: "/projects", moduleKey: "projects" },
+    // { name: "All Projects", icon: <Projector />, path: "/projects", moduleKey: "projects" },
     { name: "Users", icon: <User />, path: "/users", moduleKey: "users" },
     { name: "Complaint", icon: <File />, path: "/complaint", moduleKey: "complaints" },
     { name: "Trustmark Audit", icon: <Settings />, path: "/trustmark", moduleKey: "trustmarks" },
     { name: "C3 Inspection", icon: <InspectIcon />, path: "/inspection", moduleKey: "inspections" },
     { name: "Customer Record", icon: <Briefcase />, path: "/customer-record", moduleKey: "customer_records" },
-    { name: "Leads", icon: <File />, path: "/leads", moduleKey: "leads" },
+    // { name: "Leads", icon: <File />, path: "/leads", moduleKey: "leads" },
     { name: "Notifications", icon: <AlertCircle />, path: "/notifications", moduleKey: "notifications" },
     { name: "Activity Screen", icon: <Activity />, path: "/activity", moduleKey: "activity" },
 

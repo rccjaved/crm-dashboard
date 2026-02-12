@@ -21,11 +21,15 @@ export default function CreateTrustMarkPage() {
     address: "",
     description: "",
     status: "pending",
-    photo: null,
+    photos: null,
     expected_completion_date: "",
     review_testing_date: "",
     review_status: "pending",
     assigned_to: "",
+    case_open_date: new Date().toISOString().slice(0,10),
+    seven_days_deadline: false,
+    days_left: "",
+    notes: "",
   });
 
   const [imagePreview, setImagePreview] = useState(null);
@@ -35,6 +39,31 @@ export default function CreateTrustMarkPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    // auto-calc days_left when expected_completion_date changes
+    if (name === "expected_completion_date") {
+      setFormData((prev) => {
+        const next = { ...prev, [name]: value };
+        if (next.case_open_date && next.expected_completion_date) {
+          const d1 = new Date(next.case_open_date);
+          const d2 = new Date(next.expected_completion_date);
+          if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+            const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+            next.days_left = String(diff);
+          } else {
+            next.days_left = "";
+          }
+        }
+        return next;
+      });
+      return;
+    }
+
+    // handle checkbox
+    if (e.target.type === "checkbox") {
+      setFormData((prev) => ({ ...prev, [name]: e.target.checked }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -72,8 +101,12 @@ export default function CreateTrustMarkPage() {
       }
       submitData.append("address", formData.address);
       submitData.append("description", formData.description);
-      submitData.append("photo", formData.photo);
+      // photos is a text field containing http(s) URL(s)
+      if (formData.photos) {
+        submitData.append("photos", formData.photos);
+      }
       submitData.append("status", formData.status);
+      submitData.append("case_open_date", formData.case_open_date);
       submitData.append(
         "expected_completion_date",
         formData.expected_completion_date
@@ -81,6 +114,9 @@ export default function CreateTrustMarkPage() {
       submitData.append("review_testing_date", formData.review_testing_date);
       submitData.append("review_status", formData.review_status);
       submitData.append("assigned_to", formData.assigned_to);
+      submitData.append("seven_days_deadline", formData.seven_days_deadline ? 1 : 0);
+      submitData.append("days_left", formData.days_left);
+      submitData.append("notes", formData.notes);
 
       if (imageFile) {
         submitData.append("photos", imageFile);
@@ -102,7 +138,9 @@ export default function CreateTrustMarkPage() {
         dispatch(addTrustmark(newTrustmark));
 
         toast.success("Trustmark audit created successfully!");
-        router.push("/trustmark");
+        setTimeout(() => {
+          router.push("/trustmark");
+        }, 1500);
       } else {
         throw new Error("Failed to create trustmark audit");
       }
@@ -269,6 +307,48 @@ export default function CreateTrustMarkPage() {
             </div>
           </div>
 
+          {/* Case Open Date (auto) and Days Left */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Case Open Date</label>
+              <input
+                type="date"
+                name="case_open_date"
+                value={formData.case_open_date}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                disabled
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
+              <input
+                type="text"
+                name="days_left"
+                value={formData.days_left}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                placeholder="Auto-calculated"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" name="seven_days_deadline" checked={formData.seven_days_deadline} onChange={handleInputChange} />
+              <label className="text-sm text-gray-700">7 days deadline</label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+              <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+          </div>
+
           {/* Upload Button for Image */}
           {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -324,8 +404,8 @@ export default function CreateTrustMarkPage() {
             </label>
             <input
               type="text"
-              name="photo"
-              value={formData.photo}
+              name="photos"
+              value={formData.photos}
               onChange={handleInputChange}
               placeholder="Enter photo url"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"

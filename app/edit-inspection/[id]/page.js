@@ -25,9 +25,13 @@ export default function EditInspectionPage() {
     report_result: "",
     issue_field: "",
     assignment_status: "",
+    date_assigned: "",
     expected_completion_date: "",
+    assigned_to_tecnika: false,
+    days_left: "",
     resolved_at: null,
     assigned_to: "",
+    photo: "",
   });
 
   // Fetch inspection data
@@ -44,9 +48,13 @@ export default function EditInspectionPage() {
           report_result: inspection.report_result || "",
           issue_field: inspection.issue_field || "",
           assignment_status: inspection.assignment_status || "",
+          date_assigned: inspection.date_assigned || "",
           expected_completion_date: inspection.expected_completion_date || "",
+          assigned_to_tecnika: !!inspection.assigned_to_tecnika,
+          days_left: inspection.days_left ? String(inspection.days_left) : "",
           resolved_at: inspection.resolved_at || null,
           assigned_to: inspection.assigned_to || "",
+          photo: inspection.photo || "",
         });
       } catch (error) {
         toast.error("Failed to load inspection data");
@@ -62,11 +70,21 @@ export default function EditInspectionPage() {
   }, [inspectionId, router]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => {
+      const next = { ...prev, [name]: type === 'checkbox' ? checked : value };
+      if ((name === 'date_assigned' || name === 'expected_completion_date') && next.date_assigned && next.expected_completion_date) {
+        const d1 = new Date(next.date_assigned);
+        const d2 = new Date(next.expected_completion_date);
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+          const diff = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+          next.days_left = String(diff);
+        } else {
+          next.days_left = "";
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -75,11 +93,19 @@ export default function EditInspectionPage() {
 
     try {
       const apiData = {
-        ...formData,
-        assigned_to: formData.assigned_to
-          ? parseInt(formData.assigned_to)
-          : null,
+        address: formData.address,
+        description: formData.description,
+        report_result: formData.report_result,
+        issue_field: formData.issue_field,
+        status: formData.status,
+        assignment_status: formData.assignment_status,
+        date_assigned: formData.date_assigned || null,
+        expected_completion_date: formData.expected_completion_date || null,
+        assigned_to_tecnika: !!formData.assigned_to_tecnika,
+        days_left: formData.days_left || null,
         resolved_at: formData.resolved_at || null,
+        assigned_to: formData.assigned_to ? parseInt(formData.assigned_to) : null,
+        photo: formData.photo || null,
       };
 
       const response = await axiosClient.post(
