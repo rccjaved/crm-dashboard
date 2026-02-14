@@ -154,7 +154,7 @@ export default function EditComplaintPage() {
       return;
     }
     if (!validateDate(formData.review_testing_date)) {
-      toast.error("Review testing date is invalid");
+      toast.error("Closing Date is invalid");
       return;
     }
 
@@ -371,10 +371,10 @@ export default function EditComplaintPage() {
                 />
               </div>
 
-              {/* Review Testing Date */}
+              {/* Closing Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Review Testing Date
+                  Closing Date
                 </label>
                 <input
                   type="date"

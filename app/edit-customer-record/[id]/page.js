@@ -28,7 +28,7 @@ export default function EditCustomerRecordPage() {
     folder_address: "",
   });
 
-  // Fetch customer record data
+  // Fetch company record data
   useEffect(() => {
     const fetchCustomerRecord = async () => {
       try {
@@ -45,7 +45,7 @@ export default function EditCustomerRecordPage() {
           folder_address: record.folder_address || "",
         });
       } catch (error) {
-        toast.error("Failed to load customer record data");
+        toast.error("Failed to load company record data");
         router.push("/customer-record");
       } finally {
         setIsLoading(false);
@@ -83,14 +83,14 @@ export default function EditCustomerRecordPage() {
       // Update Redux
       dispatch(updateCustomerRecord(response.data.data));
 
-      toast.success("Customer record updated successfully!");
+      toast.success("Company record updated successfully!");
 
       setTimeout(() => {
         router.push("/customer-record");
       }, 1500);
     } catch (error) {
       const errorMessage =
-        error.response?.data?.message || "Failed to update customer record";
+        error.response?.data?.message || "Failed to update company record";
       toast.error(errorMessage);
     } finally {
       dispatch(setSubmitting(false));
@@ -102,7 +102,7 @@ export default function EditCustomerRecordPage() {
       <Layout>
         <div className="min-h-screen bg-gray-50 p-6">
           <div className="text-center py-12">
-            <p className="text-gray-500">Loading customer record data...</p>
+            <p className="text-gray-500">Loading company record data...</p>
           </div>
         </div>
       </Layout>
@@ -117,9 +117,9 @@ export default function EditCustomerRecordPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Edit Customer Record
+                  Edit Company Record
                 </h1>
-                <p className="text-gray-600 mt-1">Update customer record details</p>
+                <p className="text-gray-600 mt-1">Update company record details</p>
               </div>
             </div>
           </div>
@@ -249,7 +249,7 @@ export default function EditCustomerRecordPage() {
                   type="submit"
                   className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
                 >
-                  Update Customer Record
+                  Update Company Record
                 </button>
               </div>
             </form>

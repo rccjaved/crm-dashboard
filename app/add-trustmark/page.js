@@ -172,20 +172,48 @@ export default function CreateTrustMarkPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Project ID (Optional) */}
-          {/* <div>
+          {/* Case Open Date */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project ID (Optional)
+              Case Open Date
             </label>
             <input
-              type="number"
-              name="project_id"
-              value={formData.project_id}
+              type="date"
+              name="case_open_date"
+              value={formData.case_open_date}
               onChange={handleInputChange}
-              placeholder="Enter project ID"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              disabled
+            />
+          </div>
+
+          {/* 7 Days Deadline */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="seven_days_deadline"
+              name="seven_days_deadline"
+              checked={formData.seven_days_deadline}
+              onChange={handleInputChange}
+            />
+            <label htmlFor="seven_days_deadline" className="text-sm text-gray-700">
+              7 days deadline
+            </label>
+          </div>
+
+          {/* Expected Completion Date (Deadline) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Deadline (optional)
+            </label>
+            <input
+              type="date"
+              name="expected_completion_date"
+              value={formData.expected_completion_date}
+              onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
-          </div> */}
+          </div>
 
           {/* Address */}
           <div>
@@ -203,201 +231,91 @@ export default function CreateTrustMarkPage() {
             />
           </div>
 
-          {/* Description */}
+          {/* Description/Issues */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description *
+              Description/Issues *
             </label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              placeholder="Enter description"
+              placeholder="Enter description/issues"
               rows="4"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status *
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              >
-                <option value="pending">Pending</option>
-                <option value="assigned">Assigned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            {/* Review Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Review Status *
-              </label>
-              <select
-                name="review_status"
-                value={formData.review_status}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              >
-                <option value="pending">Pending</option>
-                <option value="in_review">In Review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-
-            {/* Assigned To */}
-            {/* <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Assigned To (User ID) *
-              </label>
-              <input
-                type="number"
-                name="assigned_to"
-                value={formData.assigned_to}
-                onChange={handleInputChange}
-                placeholder="Enter user ID"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              />
-            </div> */}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Expected Completion Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Expected Completion Date *
-              </label>
-              <input
-                type="date"
-                name="expected_completion_date"
-                value={formData.expected_completion_date}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              />
-            </div>
-
-            {/* Review Testing Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Review Testing Date *
-              </label>
-              <input
-                type="date"
-                name="review_testing_date"
-                value={formData.review_testing_date}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Case Open Date (auto) and Days Left */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Case Open Date</label>
-              <input
-                type="date"
-                name="case_open_date"
-                value={formData.case_open_date}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                disabled
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
-              <input
-                type="text"
-                name="days_left"
-                value={formData.days_left}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                placeholder="Auto-calculated"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-            <div className="flex items-center gap-2">
-              <input type="checkbox" name="seven_days_deadline" checked={formData.seven_days_deadline} onChange={handleInputChange} />
-              <label className="text-sm text-gray-700">7 days deadline</label>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
-              <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-            </div>
-          </div>
-
+          {/* Days Left */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-            <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Days Left
+            </label>
+            <input
+              type="text"
+              name="days_left"
+              value={formData.days_left}
+              readOnly
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+              placeholder="Auto-calculated"
+            />
           </div>
 
-          {/* Upload Button for Image */}
-          {/* <div>
+          {/* Status */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Upload Image (Optional)
+              Status *
             </label>
-            <div className="flex items-center gap-4">
-              <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <svg
-                    className="w-8 h-8 mb-4 text-gray-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <p className="text-xs text-gray-500">Upload Image</p>
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            >
+              <option value="pending">Pending</option>
+              <option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
 
-              {imagePreview && (
-                <div className="relative">
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-            </div>
-          </div> */}
+          {/* Review Status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Review Status *
+            </label>
+            <select
+              name="review_status"
+              value={formData.review_status}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            >
+              <option value="pending">Pending</option>
+              <option value="in_review">In Review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notes
+            </label>
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleInputChange}
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            ></textarea>
+          </div>
+
+          {/* Photos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Complaint Image
@@ -410,6 +328,35 @@ export default function CreateTrustMarkPage() {
               placeholder="Enter photo url"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               required
+            />
+          </div>
+
+          {/* Review Testing Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Review Testing Date *
+            </label>
+            <input
+              type="date"
+              name="review_testing_date"
+              value={formData.review_testing_date}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            />
+          </div>
+
+          {/* Assigned To */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assigned To
+            </label>
+            <input
+              type="text"
+              name="assigned_to"
+              value={formData.assigned_to}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
           </div>
 

@@ -45,14 +45,14 @@ export default function AddCustomerRecordPage() {
       // Add to Redux
       dispatch(addCustomerRecord(response.data.data));
 
-      toast.success("Customer record created successfully!");
+      toast.success("Company record created successfully!");
 
       setTimeout(() => {
         router.push("/customer-record");
       }, 1500);
     } catch (error) {
       const errorMessage =
-        error.response?.data?.message || "Failed to create customer record";
+        error.response?.data?.message || "Failed to create company record";
       dispatch(setError(errorMessage));
       toast.error(errorMessage);
     } finally {
@@ -66,7 +66,7 @@ export default function AddCustomerRecordPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Create Customer Record
+              Create Company Record
             </h1>
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function AddCustomerRecordPage() {
               disabled={isSubmitting}
               className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Creating..." : "Create Customer Record"}
+              {isSubmitting ? "Creating..." : "Create Company Record"}
             </button>
           </div>
         </form>

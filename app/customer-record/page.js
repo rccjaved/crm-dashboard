@@ -21,7 +21,7 @@ export default function CustomerRecordPage() {
     (state) => state.customerRecords
   );
 
-  // Fetch customer records
+  // Fetch company records
   const fetchCustomerRecords = async (page = 1) => {
     try {
       dispatch(setLoading(true));
@@ -42,8 +42,8 @@ export default function CustomerRecordPage() {
         })
       );
     } catch (error) {
-      dispatch(setError("Failed to load customer records"));
-      toast.error("Failed to load customer records");
+      dispatch(setError("Failed to load company records"));
+      toast.error("Failed to load company records");
     } finally {
       dispatch(setLoading(false));
     }
@@ -64,13 +64,13 @@ export default function CustomerRecordPage() {
   };
 
   const handleDelete = async (recordId) => {
-    if (confirm("Are you sure you want to delete this customer record?")) {
+    if (confirm("Are you sure you want to delete this company record?")) {
       try {
         await axiosClient.delete(`/customer-record/${recordId}`);
         dispatch(deleteCustomerRecord(recordId));
-        toast.success("Customer record deleted successfully!");
+        toast.success("Company record deleted successfully!");
       } catch (error) {
-        toast.error("Failed to delete customer record");
+        toast.error("Failed to delete company record");
       }
     }
   };
@@ -129,10 +129,10 @@ export default function CustomerRecordPage() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Customer Records
+                  Company Records
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  Manage customer records and their details.
+                  Manage company records and their details.
                 </p>
               </div>
               <button
@@ -140,7 +140,7 @@ export default function CustomerRecordPage() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
               >
                 <Plus className="w-5 h-5 text-white mr-2" />
-                Add Customer Record
+                Add Company Record
               </button>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function CustomerRecordPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             {isLoading ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">Loading customer records...</p>
+                <p className="text-gray-500">Loading company records...</p>
               </div>
             ) : (
               <>
@@ -260,17 +260,17 @@ export default function CustomerRecordPage() {
             {customerRecords.length === 0 && !isLoading && (
               <div className="text-center py-12">
                 <h3 className="text-sm font-medium text-gray-900">
-                  No customer records found
+                  No company records found
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Get started by creating a new customer record.
+                  Get started by creating a new company record.
                 </p>
                 <div className="mt-6">
                   <button
                     onClick={() => router.push("/add-customer-record")}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                   >
-                    Add Customer Record
+                    Add Company Record
                   </button>
                 </div>
               </div>

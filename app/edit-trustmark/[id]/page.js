@@ -271,6 +271,49 @@ export default function EditTrustmarkPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Case Open Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Case Open Date
+                </label>
+                <input
+                  type="date"
+                  name="case_open_date"
+                  value={formData.case_open_date}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                  readOnly
+                />
+              </div>
+
+              {/* 7 Days Deadline */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="seven_days_deadline"
+                  name="seven_days_deadline"
+                  checked={formData.seven_days_deadline}
+                  onChange={handleInputChange}
+                />
+                <label htmlFor="seven_days_deadline" className="text-sm text-gray-700">
+                  7 days deadline
+                </label>
+              </div>
+
+              {/* Expected Completion Date (Deadline) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Deadline (optional)
+                </label>
+                <input
+                  type="date"
+                  name="expected_completion_date"
+                  value={formData.expected_completion_date}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+
               {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -286,10 +329,10 @@ export default function EditTrustmarkPage() {
                 />
               </div>
 
-              {/* Description */}
+              {/* Description/Issues */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
+                  Description/Issues
                 </label>
                 <textarea
                   name="description"
@@ -301,33 +344,19 @@ export default function EditTrustmarkPage() {
                 />
               </div>
 
-                 {/* Expected Completion Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Expected Completion Date
-                  </label>
-                  <input
-                    type="date"
-                    name="expected_completion_date"
-                    value={formData.expected_completion_date}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
-
-                {/* Review Testing Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Review Testing Date 
-                  </label>
-                  <input
-                    type="date"
-                    name="review_testing_date"
-                    value={formData.review_testing_date}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
+              {/* Days Left */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Days Left
+                </label>
+                <input
+                  type="text"
+                  name="days_left"
+                  value={formData.days_left}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                />
+              </div>
 
               {/* Status */}
               <div>
@@ -350,29 +379,43 @@ export default function EditTrustmarkPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
-                  <input type="text" name="days_left" value={formData.days_left} readOnly className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" name="seven_days_deadline" checked={formData.seven_days_deadline} onChange={handleInputChange} />
-                  <label className="text-sm text-gray-700">7 days deadline</label>
-                </div>
+              {/* Review Status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Review Status
+                </label>
+                <select
+                  name="review_status"
+                  value={formData.review_status}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="in_review">In Review</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
               </div>
 
+              {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
-                <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                ></textarea>
               </div>
 
+              {/* Photos */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows="3" className="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Photos (http(s) URL, comma separated)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Photos (http(s) URL, comma separated)
+                </label>
                 <input
                   type="text"
                   name="photos"
@@ -380,6 +423,34 @@ export default function EditTrustmarkPage() {
                   onChange={handleInputChange}
                   placeholder="https://example.com/photo1.jpg, https://..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              {/* Review Testing Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Review Testing Date
+                </label>
+                <input
+                  type="date"
+                  name="review_testing_date"
+                  value={formData.review_testing_date}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              {/* Assigned To */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Assigned To
+                </label>
+                <input
+                  type="text"
+                  name="assigned_to"
+                  value={formData.assigned_to}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 />
               </div>
 

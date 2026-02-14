@@ -20,6 +20,7 @@ export default function InspectionPage() {
   const { inspections, isLoading, pagination } = useAppSelector(
     (state) => state.inspection
   );
+  const { userInfo } = useAppSelector((state) => state.auth);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [csvUploading, setCsvUploading] = useState(false);
@@ -144,14 +145,16 @@ export default function InspectionPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="px-3 py-2 border rounded-md w-64"
                 />
-                <button
-                  onClick={() => csvInputRef.current?.click()}
-                  disabled={csvUploading}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
-                >
-                  <Plus className="w-5 h-5 text-white mr-2" />
-                  {csvUploading ? 'Uploading...' : 'Add CSV'}
-                </button>
+                {userInfo?.is_admin && (
+                  <button
+                    onClick={() => csvInputRef.current?.click()}
+                    disabled={csvUploading}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+                  >
+                    <Plus className="w-5 h-5 text-white mr-2" />
+                    {csvUploading ? 'Uploading...' : 'Add CSV'}
+                  </button>
+                )}
                 <button
                   onClick={() => router.push("/add-inspection")}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"

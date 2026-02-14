@@ -286,10 +286,10 @@ export default function CreateComplaintPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Expected Completion Date */}
 
-            {/* Review Testing Date */}
+            {/* Closing Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Review Testing Date *
+                Closing Date *
               </label>
               <input
                 type="date"

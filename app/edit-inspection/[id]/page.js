@@ -159,6 +159,26 @@ export default function EditInspectionPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Date Assigned */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date Assigned
+                </label>
+                <input
+                  type="date"
+                  name="date_assigned"
+                  value={formData.date_assigned}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              {/* Days Left */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
+                <input type="text" name="days_left" value={formData.days_left} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+              </div>
+
               {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -210,24 +230,24 @@ export default function EditInspectionPage() {
                 </select>
               </div>
 
-              {/* Report Result */}
+              {/* Photo URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photo (URL)</label>
+                <input type="text" name="photo" value={formData.photo} onChange={handleInputChange} placeholder="https://..." className="w-full px-3 py-2 border rounded" />
+              </div>
+
+              {/* Expected Completion Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Report Result
+                  Deadline
                 </label>
-                <select
-                  name="report_result"
-                  value={formData.report_result}
+                <input
+                  type="date"
+                  name="expected_completion_date"
+                  value={formData.expected_completion_date}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
-                >
-                  <option value="">Select Report Result</option>
-                  <option value="pending_inspection">Pending Inspection</option>
-                  <option value="pass">Pass</option>
-                  <option value="fail">Fail</option>
-                  <option value="in_progress">In Progress</option>
-                </select>
+                />
               </div>
 
               {/* Issue Field */}
@@ -240,13 +260,31 @@ export default function EditInspectionPage() {
                   value={formData.issue_field}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
                 >
                   <option value="">Select Issue Field</option>
                   <option value="structural">Structural</option>
                   <option value="electrical">Electrical</option>
                   <option value="plumbing">Plumbing</option>
                   <option value="general">General</option>
+                </select>
+              </div>
+
+              {/* Report Result */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Report Result
+                </label>
+                <select
+                  name="report_result"
+                  value={formData.report_result}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                >
+                  <option value="">Select Report Result</option>
+                  <option value="pending_inspection">Pending Inspection</option>
+                  <option value="pass">Pass</option>
+                  <option value="fail">Fail</option>
+                  <option value="in_progress">In Progress</option>
                 </select>
               </div>
 
@@ -260,7 +298,6 @@ export default function EditInspectionPage() {
                   value={formData.assignment_status}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
                 >
                   <option value="">Select Assignment Status</option>
                   <option value="assigned">Assigned</option>
@@ -268,33 +305,27 @@ export default function EditInspectionPage() {
                 </select>
               </div>
 
-              {/* Assigned To (User ID) */}
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assigned To (User ID)
-                </label>
+              {/* Assigned To Tecnica */}
+              <div className="flex items-center gap-2">
                 <input
-                  type="number"
-                  name="assigned_to"
-                  value={formData.assigned_to}
+                  type="checkbox"
+                  name="assigned_to_tecnika"
+                  checked={!!formData.assigned_to_tecnika}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
-              </div> */}
+                <label className="text-sm text-gray-700">Assigned To Tecnica</label>
+              </div>
 
-              {/* Expected Completion Date */}
+              {/* Resolved At */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expected Completion Date
-                </label>
-                <input
-                  type="date"
-                  name="expected_completion_date"
-                  value={formData.expected_completion_date}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Resolved At</label>
+                <input type="date" name="resolved_at" value={formData.resolved_at || ""} onChange={handleInputChange} className="w-full px-3 py-2 border rounded" />
+              </div>
+
+              {/* Assigned To (User ID) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+                <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} placeholder="Enter user id or name" className="w-full px-3 py-2 border rounded" />
               </div>
 
               {/* Buttons */}

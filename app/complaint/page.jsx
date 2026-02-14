@@ -21,6 +21,7 @@ export default function ComplaintPage() {
   const { complaints, isLoading } = useAppSelector(
     (state) => state.complaints
   );
+  const { userInfo } = useAppSelector((state) => state.auth);
   const [pagination, setLocalPagination] = useState({
     total: 0,
     per_page: 10,
@@ -207,13 +208,15 @@ export default function ComplaintPage() {
                   Add Complaint
                 </button>
 
-                <button
-                  onClick={handleCsvUploadClick}
-                  disabled={isUploadingCsv}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center"
-                >
-                  {isUploadingCsv ? 'Uploading...' : 'Add CSV'}
-                </button>
+                {userInfo?.is_admin && (
+                  <button
+                    onClick={handleCsvUploadClick}
+                    disabled={isUploadingCsv}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center"
+                  >
+                    {isUploadingCsv ? 'Uploading...' : 'Add CSV'}
+                  </button>
+                )}
                 <input
                   type="file"
                   accept=".csv,text/csv"

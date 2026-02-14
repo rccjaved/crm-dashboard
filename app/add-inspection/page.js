@@ -124,6 +124,27 @@ export default function AddInspectionPage() {
             />
           </div> */}
 
+          {/* Date Assigned */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date Assigned
+            </label>
+            <input
+              type="date"
+              name="date_assigned"
+              value={formData.date_assigned}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            />
+          </div>
+
+          {/* Days Left (auto-calculated) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
+            <input type="text" name="days_left" value={formData.days_left} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
+          </div>
+
           {/* Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -177,24 +198,25 @@ export default function AddInspectionPage() {
             </select>
           </div>
 
-          {/* Report Result */}
+          {/* Photo URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Photo (URL)</label>
+            <input type="text" name="photo" value={formData.photo} onChange={handleInputChange} placeholder="https://..." className="w-full px-3 py-2 border rounded" />
+          </div>
+
+          {/* Expected Completion Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Report Result
+              Deadline
             </label>
-            <select
-              name="report_result"
-              value={formData.report_result}
+            <input
+              type="date"
+              name="expected_completion_date"
+              value={formData.expected_completion_date}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               required
-            >
-              <option value="">Select Report Result</option>
-              <option value="pending_inspection">Pending Inspection</option>
-              <option value="pass">Pass</option>
-              <option value="fail">Fail</option>
-              <option value="in_progress">In Progress</option>
-            </select>
+            />
           </div>
 
           {/* Issue Field */}
@@ -217,6 +239,26 @@ export default function AddInspectionPage() {
             </select>
           </div>
 
+          {/* Report Result */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Report Result
+            </label>
+            <select
+              name="report_result"
+              value={formData.report_result}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            >
+              <option value="">Select Report Result</option>
+              <option value="pending_inspection">Pending Inspection</option>
+              <option value="pass">Pass</option>
+              <option value="fail">Fail</option>
+              <option value="in_progress">In Progress</option>
+            </select>
+          </div>
+
           {/* Assignment Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -235,22 +277,7 @@ export default function AddInspectionPage() {
             </select>
           </div>
 
-          {/* Date Assigned */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date Assigned
-            </label>
-            <input
-              type="date"
-              name="date_assigned"
-              value={formData.date_assigned}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
-            />
-          </div>
-
-          {/* Assigned To Tecnika */}
+          {/* Assigned To Tecnica */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -261,46 +288,16 @@ export default function AddInspectionPage() {
             <label className="text-sm text-gray-700">Assigned To Tecnica</label>
           </div>
 
-          {/* Days Left (auto-calculated) */}
+          {/* Resolved At */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Days Left</label>
-            <input type="text" name="days_left" value={formData.days_left} readOnly className="w-full px-3 py-2 border rounded bg-gray-50" />
-          </div>
-
-          {/* Photo URL */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Photo (URL)</label>
-            <input type="text" name="photo" value={formData.photo} onChange={handleInputChange} placeholder="https://..." className="w-full px-3 py-2 border rounded" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Resolved At</label>
+            <input type="date" name="resolved_at" value={formData.resolved_at || ""} onChange={handleInputChange} className="w-full px-3 py-2 border rounded" />
           </div>
 
           {/* Assigned To (User ID) */}
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Assigned To (User ID)
-            </label>
-            <input
-              type="number"
-              name="assigned_to"
-              value={formData.assigned_to}
-              onChange={handleInputChange}
-              placeholder="Enter user ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
-          </div> */}
-
-          {/* Expected Completion Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Expected Completion Date
-            </label>
-            <input
-              type="date"
-              name="expected_completion_date"
-              value={formData.expected_completion_date}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+            <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} placeholder="Enter user id or name" className="w-full px-3 py-2 border rounded" />
           </div>
 
           {/* Create Inspection Button */}

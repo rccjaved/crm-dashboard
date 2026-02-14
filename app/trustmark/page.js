@@ -27,6 +27,7 @@ export default function TrustmarkPage() {
   const { trustmarks, isLoading, pagination } = useAppSelector(
     (state) => state.trustmark
   );
+  const { userInfo } = useAppSelector((state) => state.auth);
 
   const [csvUploading, setCsvUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -199,14 +200,16 @@ export default function TrustmarkPage() {
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => csvInputRef.current?.click()}
-                    disabled={csvUploading}
-                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
-                  >
-                    <Plus className="w-5 h-5 text-white mr-2" />
-                    {csvUploading ? 'Uploading...' : 'Add CSV'}
-                  </button>
+                  {userInfo?.is_admin && (
+                    <button
+                      onClick={() => csvInputRef.current?.click()}
+                      disabled={csvUploading}
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
+                    >
+                      <Plus className="w-5 h-5 text-white mr-2" />
+                      {csvUploading ? 'Uploading...' : 'Add CSV'}
+                    </button>
+                  )}
                   <button
                     onClick={() => router.push("/add-trustmark")}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center"
@@ -255,7 +258,7 @@ export default function TrustmarkPage() {
                           Date Registered
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Expected Completion
+                          Deadline
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Days Left

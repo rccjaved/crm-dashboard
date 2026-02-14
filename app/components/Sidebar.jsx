@@ -18,12 +18,12 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     // { name: "All Projects", icon: <Projector />, path: "/projects", moduleKey: "projects" },
     { name: "Users", icon: <User />, path: "/users", moduleKey: "users" },
     { name: "Complaint", icon: <File />, path: "/complaint", moduleKey: "complaints" },
-    { name: "Trustmark Audit", icon: <Settings />, path: "/trustmark", moduleKey: "trustmarks" },
-    { name: "C3 Inspection", icon: <InspectIcon />, path: "/inspection", moduleKey: "inspections" },
-    { name: "Customer Record", icon: <Briefcase />, path: "/customer-record", moduleKey: "customer_records" },
+    { name: "Trustmark Audit", icon: <Settings />, path: "/trustmark", moduleKey: "trustmark" },
+    { name: "C3 Inspection", icon: <InspectIcon />, path: "/inspection", moduleKey: "c3" },
+    { name: "Company Record", icon: <Briefcase />, path: "/customer-record", moduleKey: "customer_records" },
     // { name: "Leads", icon: <File />, path: "/leads", moduleKey: "leads" },
-    { name: "Notifications", icon: <AlertCircle />, path: "/notifications", moduleKey: "notifications" },
-    { name: "Activity Screen", icon: <Activity />, path: "/activity", moduleKey: "activity" },
+    { name: "Notifications", icon: <AlertCircle />, path: "/notifications" },
+    { name: "Activity Screen", icon: <Activity />, path: "/activity" },
 
     // { name: "Chat", icon: <MessageSquare />, path: "/chat", moduleKey: "chat" },
   ];
@@ -55,7 +55,9 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     // Filter other menu items based on enabled modules
     // Dashboard is always included
     const filteredItems = otherMenuItems.filter(item => {
-      // Check if the menu item's module key is in the enabled modules
+      // Always include items that don't have a moduleKey (e.g. Notifications, Activity)
+      if (!item.moduleKey) return true;
+      // Otherwise include only if user's enabled modules contain the moduleKey
       return enabledModuleKeys.includes(item.moduleKey);
     });
 
