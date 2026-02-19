@@ -26,7 +26,7 @@ export default function CustomerRecordPage() {
     try {
       dispatch(setLoading(true));
       const response = await axiosClient.get(
-        `/get/customer-record?page=${page}&per_page=5`
+        `/get/customer-record?page=${page}&per_page=20`
       );
 
       const data = response?.data?.data;
@@ -35,7 +35,7 @@ export default function CustomerRecordPage() {
           customerRecords: data.data || [],
           pagination: {
             total: data.total || 0,
-            per_page: data.per_page || 5,
+            per_page: data.per_page || 20,
             current_page: data.current_page || 1,
             last_page: data.last_page || 1,
           },
