@@ -32,6 +32,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     lead_provider: "",
     property_ownership: "",
     services: [],
+    documents: [],
     make_model_serial: "",
     data_plate: "",
     epc_link: "",
@@ -149,6 +150,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         lead_id: leadId,
         // populate services from lead.services
         services: lead.services || [],
+        // populate documents from lead.documents
+        documents: lead.documents || [],
       }));
     }
   }, [leadData, leadId, isOpen]);
@@ -333,6 +336,68 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.loft_details, formData.wall_ext_details, formData.solid_wall_area, formData.glazed_area]);
 
+  // Document groups helpers
+  const addDocumentGroup = () => {
+    setFormData((prev) => ({
+      ...prev,
+      documents: [...(Array.isArray(prev.documents) ? prev.documents : []), { main_folder: "", file_type: "", documents: [] }],
+    }));
+  };
+
+  const removeDocumentGroup = (index) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.documents) ? [...prev.documents] : [];
+      arr.splice(index, 1);
+      return { ...prev, documents: arr };
+    });
+  };
+
+  const updateDocumentGroup = (index, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.documents) ? [...prev.documents] : [];
+      const g = { ...(arr[index] || {}) };
+      g[key] = value;
+      arr[index] = g;
+      return { ...prev, documents: arr };
+    });
+  };
+
+  const addDocumentRow = (groupIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.documents) ? [...prev.documents] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      g.documents = [...(Array.isArray(g.documents) ? g.documents : []), { name: "", status: "", issue: "", issue_date: "" }];
+      arr[groupIndex] = g;
+      return { ...prev, documents: arr };
+    });
+  };
+
+  const removeDocumentRow = (groupIndex, docIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.documents) ? [...prev.documents] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      docs.splice(docIndex, 1);
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, documents: arr };
+    });
+  };
+
+  const updateDocumentRow = (groupIndex, docIndex, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.documents) ? [...prev.documents] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      const d = { ...(docs[docIndex] || {}) };
+      d[key] = value;
+      docs[docIndex] = d;
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, documents: arr };
+    });
+  };
+
   const saveProposedMeasures = async () => {
     try {
       // ensure lead_id available
@@ -347,9 +412,9 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent submission unless user is on final step (step 6)
-    if (currentStep !== 6) {
-      setCurrentStep(6);
+    // Prevent submission unless user is on final step (step 7)
+    if (currentStep !== 7) {
+      setCurrentStep(7);
       return;
     }
 
@@ -435,6 +500,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         lead_provider: "",
         property_ownership: "",
         services: [],
+        documents: [],
         make_model_serial: "",
         data_plate: "",
         epc_link: "",
@@ -454,14 +520,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         pres_3_months_old: "",
         pres_video_available: "",
         gcgp: "",
-        front_elevation_photos: [],
-        rear_elevation_photos: [],
-        wall_thickness_main: [],
-        wall_thickness_ext_1: [],
-        wall_thickness_ext_2: [],
-        pitched_roof_ext_1_sc_evidence_150mm: [],
-        pitched_roof_main: [],
-        pmhs_with_dataplate: [],
+        front_elevation_photos: "",
+        rear_elevation_photos: "",
+        wall_thickness_main: "",
+        wall_thickness_ext_1: "",
+        wall_thickness_ext_2: "",
+        pitched_roof_ext_1_sc_evidence_150mm: "",
+        pitched_roof_main: "",
+        pmhs_with_dataplate: "",
         secondary_heating_source_evidence: "",
         cavity_filled_evidence: "",
         gas_electric_meters: "",
@@ -555,7 +621,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky bg-white">
         <div>
           <h2 className="text-xl font-bold">Lead Property Evidence</h2>
-          <p className="text-sm text-gray-600">Step {currentStep} of 6</p>
+          <p className="text-sm text-gray-600">Step {currentStep} of 7</p>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
           <X className="w-6 h-6" />
@@ -567,7 +633,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         onSubmit={handleSubmit}
         onKeyDown={(e) => {
           // Prevent Enter from submitting the whole form on steps before final
-          if (e.key === "Enter" && currentStep !== 6) {
+          if (e.key === "Enter" && currentStep !== 7) {
             e.preventDefault();
           }
         }}
@@ -638,16 +704,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Address</label>
-                  <select
+                  <input
+                    type="text"
                     name="address"
                     value={formData.address ?? ""}
                     onChange={handleInputChange}
+                    placeholder="Lead address"
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Select...</option>
-                    <option value="Required">Required</option>
-                    <option value="Not Available">Not Available</option>
-                  </select>
+                  />
                 </div>
 
                 <hr className="my-6" />
@@ -1308,19 +1372,48 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 <h3 className="text-lg font-semibold mb-4">EPC & Numeric Metrics</h3>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Proposed Measures (from Lead services)</label>
-                  <select
-                    name="services"
-                    value={Array.isArray(formData.services) ? formData.services.join(", ") : (formData.services || "")}
-                    onChange={(e) => handleArrayInput("services", e.target.value)}
-                    onBlur={saveProposedMeasures}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="">Select...</option>
-                    <option value="Required">Required</option>
-                    <option value="Not Available">Not Available</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">Edit and click outside the field to save services to the lead.</p>
+                  <label className="block text-sm font-medium text-gray-700">Services Required</label>
+                  <div className="mt-2">
+                    {Array.isArray(formData.services) && formData.services.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {formData.services.map((s, i) => {
+                          const n = (s || "").toLowerCase();
+                          let icon = "⚙️";
+                          if (n.includes("ewi")) icon = "🏠";
+                          else if (n.includes("boiler")) icon = "🔧";
+                          else if (n.includes("heating") || n.includes("ftch") || n.includes("control")) icon = "🌡️";
+                          else if (n.includes("loft")) icon = "🛖";
+                          else if (n.includes("solar")) icon = "☀️";
+                          else if (n.includes("single")) icon = "🔹";
+
+                          return (
+                            <span key={i} className="inline-flex items-center px-2 py-1 text-sm bg-gray-100 rounded">
+                              <span className="mr-2 text-md" aria-hidden>{icon}</span>
+                              <span>{s}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">No services selected on the lead.</div>
+                    )}
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700">Proposed Measures (from Lead services)</label>
+                    <select
+                      name="services"
+                      value={Array.isArray(formData.services) ? formData.services.join(", ") : (formData.services || "")}
+                      onChange={(e) => handleArrayInput("services", e.target.value)}
+                      onBlur={saveProposedMeasures}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select...</option>
+                      <option value="Required">Required</option>
+                      <option value="Not Available">Not Available</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Edit and click outside the field to save services to the lead.</p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -1420,11 +1513,20 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   </div>
                   <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700">High Value Notes</label>
-                    <select name="high_value_notes" value={formData.high_value_notes ?? ""} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                    {/* <select name="high_value_notes" value={formData.high_value_notes ?? ""} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                       <option value="">Select...</option>
                       <option value="Required">Required</option>
                       <option value="Not Available">Not Available</option>
-                    </select>
+                    </select> */}
+
+                    <textarea
+                      name="high_value_notes"
+                      value={formData.high_value_notes}
+                      onChange={handleInputChange}
+                      placeholder="Any additional information"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      rows="3"
+                    />
                   </div>
                 </div>
               </div>
@@ -1604,6 +1706,79 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               </div>
             )}
 
+            {/* Step 7: Documents */}
+            {currentStep === 7 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold mb-4">Documents</h3>
+
+                <div className="space-y-4">
+                  {(Array.isArray(formData.documents) ? formData.documents : []).map((group, gi) => (
+                    <div key={gi} className="p-4 border rounded">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium">Main Folder</label>
+                          <input type="text" value={group.main_folder || ""} onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)} className="mt-1 block w-full px-3 py-2 border rounded" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium">File Type</label>
+                          <input type="text" value={group.file_type || ""} onChange={(e) => updateDocumentGroup(gi, 'file_type', e.target.value)} className="mt-1 block w-full px-3 py-2 border rounded" />
+                        </div>
+                        <div className="flex items-end">
+                          <button type="button" onClick={() => removeDocumentGroup(gi)} className="text-red-600">Remove Group</button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                          <div key={di} className="grid grid-cols-12 gap-2 items-end">
+                            <div className="col-span-4">
+                              <label className="block text-sm">Name</label>
+                              <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-sm">Status</label>
+                              <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded">
+                                <option value="">Select...</option>
+                                <option value="Done">Done</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Not Required">Not Required</option>
+                                <option value="Pending Check">Pending Check</option>
+                                <option value="Incomplete">Incomplete</option>
+                                <option value="Errors">Errors</option>
+                                <option value="Scan Remaining">Scan Remaining</option>
+                                <option value="Signatures">Signatures</option>
+                                <option value="KSDL">KSDL</option>
+                                <option value="BLB">BLB</option>
+                              </select>
+                            </div>
+                            <div className="col-span-4">
+                              <label className="block text-sm">Issue</label>
+                              <input type="text" value={doc.issue || ""} onChange={(e) => updateDocumentRow(gi, di, 'issue', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-sm">Issue Date</label>
+                              <input type="date" value={doc.issue_date || ""} onChange={(e) => updateDocumentRow(gi, di, 'issue_date', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                            </div>
+                            <div className="col-span-12 text-right">
+                              <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-sm text-red-600">Remove</button>
+                            </div>
+                          </div>
+                        ))}
+
+                        <div>
+                          <button type="button" onClick={() => addDocumentRow(gi)} className="px-3 py-1 bg-gray-200 rounded">Add Document</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div>
+                    <button type="button" onClick={addDocumentGroup} className="px-3 py-1 bg-gray-200 rounded">Add Document Group</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Footer with Navigation */}
             <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-200">
               <button
@@ -1617,7 +1792,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               </button>
 
               <div className="flex space-x-2">
-                {[1, 2, 3, 4, 5, 6].map((step) => (
+                {[1, 2, 3, 4, 5, 6, 7].map((step) => (
                   <button
                     key={step}
                     type="button"
@@ -1632,7 +1807,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 ))}
               </div>
 
-              {currentStep === 6 ? (
+              {currentStep === 7 ? (
                 <button
                   type="submit"
                   disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
@@ -1643,7 +1818,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               ) : (
                 <button
                   type="button"
-                  onClick={() => setCurrentStep((prev) => Math.min(6, prev + 1))}
+                  onClick={() => setCurrentStep((prev) => Math.min(7, prev + 1))}
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
                 >
                   <span>Next</span>
