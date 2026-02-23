@@ -86,7 +86,7 @@ export default function AddCustomerRecordPage() {
               onChange={handleInputChange}
               placeholder="Enter customer name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             />
           </div>
 
@@ -102,7 +102,7 @@ export default function AddCustomerRecordPage() {
               onChange={handleInputChange}
               placeholder="Enter service type (e.g., Plumbing, Electrical, etc.)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             />
           </div>
 
@@ -118,7 +118,7 @@ export default function AddCustomerRecordPage() {
               onChange={handleInputChange}
               placeholder="Enter registration number (e.g., REG123)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             />
           </div>
 
@@ -133,7 +133,7 @@ export default function AddCustomerRecordPage() {
               value={formData.start_date}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             />
           </div>
 
@@ -148,7 +148,7 @@ export default function AddCustomerRecordPage() {
               value={formData.expiry_date}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             />
           </div>
 
@@ -164,7 +164,7 @@ export default function AddCustomerRecordPage() {
               onChange={handleInputChange}
               placeholder="Enter folder address"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             />
           </div>
 
@@ -178,7 +178,7 @@ export default function AddCustomerRecordPage() {
               value={formData.status}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              required
+              
             >
               <option value="">Select Status</option>
               <option value="active">Active</option>
