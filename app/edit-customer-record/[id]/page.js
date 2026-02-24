@@ -28,7 +28,6 @@ export default function EditCustomerRecordPage() {
     folder_address: "",
   });
 
-  // Fetch company record data
   useEffect(() => {
     const fetchCustomerRecord = async () => {
       try {
@@ -39,8 +38,12 @@ export default function EditCustomerRecordPage() {
           name: record.name || "",
           service: record.service || "",
           reg_no: record.reg_no || "",
-          start_date: record.start_date ? record.start_date.split("T")[0] : "",
-          expiry_date: record.expiry_date ? record.expiry_date.split("T")[0] : "",
+          start_date: record.start_date
+            ? record.start_date.split("T")[0]
+            : "",
+          expiry_date: record.expiry_date
+            ? record.expiry_date.split("T")[0]
+            : "",
           status: record.status || "",
           folder_address: record.folder_address || "",
         });
@@ -80,9 +83,7 @@ export default function EditCustomerRecordPage() {
         requestData
       );
 
-      // Update Redux
       dispatch(updateCustomerRecord(response.data.data));
-
       toast.success("Company record updated successfully!");
 
       setTimeout(() => {
@@ -114,22 +115,20 @@ export default function EditCustomerRecordPage() {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-4xl mx-auto">
           <div className="mb-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Edit Company Record
-                </h1>
-                <p className="text-gray-600 mt-1">Update company record details</p>
-              </div>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Edit Company Record
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Update company record details
+            </p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name */}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Name <span className="text-red-500">*</span>
+                  Name
                 </label>
                 <input
                   type="text"
@@ -137,14 +136,12 @@ export default function EditCustomerRecordPage() {
                   value={formData.name}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  
                 />
               </div>
 
-              {/* Service */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Service <span className="text-red-500">*</span>
+                  Service
                 </label>
                 <input
                   type="text"
@@ -152,14 +149,12 @@ export default function EditCustomerRecordPage() {
                   value={formData.service}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  
                 />
               </div>
 
-              {/* Registration Number */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Registration Number <span className="text-red-500">*</span>
+                  Registration Number
                 </label>
                 <input
                   type="text"
@@ -167,14 +162,12 @@ export default function EditCustomerRecordPage() {
                   value={formData.reg_no}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  
                 />
               </div>
 
-              {/* Start Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Date <span className="text-red-500">*</span>
+                  Start Date
                 </label>
                 <input
                   type="date"
@@ -182,14 +175,12 @@ export default function EditCustomerRecordPage() {
                   value={formData.start_date}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  
                 />
               </div>
 
-              {/* Expiry Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Expiry Date <span className="text-red-500">*</span>
+                  Expiry Date
                 </label>
                 <input
                   type="date"
@@ -197,11 +188,9 @@ export default function EditCustomerRecordPage() {
                   value={formData.expiry_date}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  
                 />
               </div>
 
-              {/* Folder Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Folder Address
@@ -215,28 +204,27 @@ export default function EditCustomerRecordPage() {
                 />
               </div>
 
-              
-              {/* Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status <span className="text-red-500">*</span>
+                  Status
                 </label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  
                 >
                   <option value="">Select Status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="expired">Expired</option>
                   <option value="pending">Pending</option>
+                  {formData.status && !["active", "inactive", "expired", "pending"].includes(formData.status) && (
+                    <option value={formData.status}>{formData.status}</option>
+                  )}
                 </select>
               </div>
 
-              {/* Buttons */}
               <div className="flex justify-end space-x-4 pt-6">
                 <button
                   type="button"
@@ -245,6 +233,7 @@ export default function EditCustomerRecordPage() {
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
                   className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
@@ -252,10 +241,12 @@ export default function EditCustomerRecordPage() {
                   Update Company Record
                 </button>
               </div>
+
             </form>
           </div>
         </div>
       </div>
+
       <ToastContainer position="top-right" />
     </Layout>
   );

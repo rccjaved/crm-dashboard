@@ -40,11 +40,12 @@ export default function AddCustomerRecordPage() {
     dispatch(setSubmitting(true));
 
     try {
-      const response = await axiosClient.post("/customer-record/store", formData);
+      const response = await axiosClient.post(
+        "/customer-record/store",
+        formData
+      );
 
-      // Add to Redux
       dispatch(addCustomerRecord(response.data.data));
-
       toast.success("Company record created successfully!");
 
       setTimeout(() => {
@@ -74,10 +75,10 @@ export default function AddCustomerRecordPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Name */}
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Name <span className="text-red-500">*</span>
+              Name
             </label>
             <input
               type="text"
@@ -86,46 +87,40 @@ export default function AddCustomerRecordPage() {
               onChange={handleInputChange}
               placeholder="Enter customer name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             />
           </div>
 
-          {/* Service */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Service <span className="text-red-500">*</span>
+              Service
             </label>
             <input
               type="text"
               name="service"
               value={formData.service}
               onChange={handleInputChange}
-              placeholder="Enter service type (e.g., Plumbing, Electrical, etc.)"
+              placeholder="Enter service type"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             />
           </div>
 
-          {/* Registration Number */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Registration Number <span className="text-red-500">*</span>
+              Registration Number
             </label>
             <input
               type="text"
               name="reg_no"
               value={formData.reg_no}
               onChange={handleInputChange}
-              placeholder="Enter registration number (e.g., REG123)"
+              placeholder="Enter registration number"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             />
           </div>
 
-          {/* Start Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Start Date <span className="text-red-500">*</span>
+              Start Date
             </label>
             <input
               type="date"
@@ -133,14 +128,12 @@ export default function AddCustomerRecordPage() {
               value={formData.start_date}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             />
           </div>
 
-          {/* Expiry Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Expiry Date <span className="text-red-500">*</span>
+              Expiry Date
             </label>
             <input
               type="date"
@@ -148,11 +141,9 @@ export default function AddCustomerRecordPage() {
               value={formData.expiry_date}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             />
           </div>
 
-          {/* Folder Address */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Folder Address
@@ -164,21 +155,18 @@ export default function AddCustomerRecordPage() {
               onChange={handleInputChange}
               placeholder="Enter folder address"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             />
           </div>
 
-          {/* Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status <span className="text-red-500">*</span>
+              Status
             </label>
             <select
               name="status"
               value={formData.status}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              
             >
               <option value="">Select Status</option>
               <option value="active">Active</option>
@@ -187,7 +175,6 @@ export default function AddCustomerRecordPage() {
             </select>
           </div>
 
-          {/* Create Button */}
           <div className="flex justify-end pt-6">
             <button
               type="submit"
@@ -199,6 +186,7 @@ export default function AddCustomerRecordPage() {
           </div>
         </form>
       </div>
+
       <ToastContainer position="top-right" />
     </Layout>
   );

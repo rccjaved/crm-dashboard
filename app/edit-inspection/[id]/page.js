@@ -230,12 +230,6 @@ export default function EditInspectionPage() {
                 </select>
               </div>
 
-              {/* Photo URL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Photo (URL)</label>
-                <input type="text" name="photo" value={formData.photo} onChange={handleInputChange} placeholder="https://..." className="w-full px-3 py-2 border rounded" />
-              </div>
-
               {/* Expected Completion Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -253,7 +247,7 @@ export default function EditInspectionPage() {
               {/* Issue Field */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Issue Field
+                  C3 Measure
                 </label>
                 <select
                   name="issue_field"
@@ -261,11 +255,14 @@ export default function EditInspectionPage() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 >
-                  <option value="">Select Issue Field</option>
-                  <option value="structural">Structural</option>
-                  <option value="electrical">Electrical</option>
-                  <option value="plumbing">Plumbing</option>
-                  <option value="general">General</option>
+                  <option value="">Select C3 Measure</option>
+                  <option value="loft">Loft</option>
+                  <option value="boiler">Boiler</option>
+                  <option value="iwi">IWI</option>
+                  <option value="ewi">EWI</option>
+                  <option value="hc">HC</option>
+                  <option value="solar">Solar</option>
+                  <option value="ashp">ASHP</option>
                 </select>
               </div>
 
@@ -291,7 +288,7 @@ export default function EditInspectionPage() {
               {/* Assignment Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Assignment Status
+                  Company Name
                 </label>
                 <select
                   name="assignment_status"
@@ -299,14 +296,14 @@ export default function EditInspectionPage() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 >
-                  <option value="">Select Assignment Status</option>
-                  <option value="assigned">Assigned</option>
-                  <option value="unassigned">Unassigned</option>
+                  <option value="">Select Company Name</option>
+                  <option value="tecnica">Tecnica</option>
+                  <option value="isaac">Isaac</option>
                 </select>
               </div>
 
               {/* Assigned To Tecnica */}
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   name="assigned_to_tecnika"
@@ -314,7 +311,7 @@ export default function EditInspectionPage() {
                   onChange={handleInputChange}
                 />
                 <label className="text-sm text-gray-700">Assigned To Tecnica</label>
-              </div>
+              </div> */}
 
               {/* Resolved At */}
               <div>
@@ -323,9 +320,15 @@ export default function EditInspectionPage() {
               </div>
 
               {/* Assigned To (User ID) */}
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
                 <input type="text" name="assigned_to" value={formData.assigned_to} onChange={handleInputChange} placeholder="Enter user id or name" className="w-full px-3 py-2 border rounded" />
+              </div> */}
+
+              {/* Photo URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Photo (URL)</label>
+                <input type="text" name="photo" value={formData.photo} onChange={handleInputChange} placeholder="https://..." className="w-full px-3 py-2 border rounded" />
               </div>
 
               {/* Buttons */}

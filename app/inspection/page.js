@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Layout from "../components/Layout";
-import { Plus, ChevronLeft, ChevronRight, Edit, Trash2 } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import axiosClient from "@/lib/axiosClient";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -113,9 +113,8 @@ export default function InspectionPage() {
 
     return (
       <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          statusConfig[status] || statusConfig.pending
-        }`}
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[status] || statusConfig.pending
+          }`}
       >
         {status}
       </span>
@@ -185,36 +184,37 @@ export default function InspectionPage() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {/* <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           ID
-                        </th>
+                        </th> */}
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Address
                         </th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Description
+                          C3 Measure
                         </th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                       
+
+                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Company Name
+                        </th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Expected Date
                         </th>
                         <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Days Left
                         </th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
+
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {inspections.map((inspection) => (
-                        <tr key={inspection.id} className="hover:bg-gray-50">
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <tr key={inspection.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleEdit(inspection.id)}>
+                          {/* <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {inspection.id}
-                          </td>
+                          </td> */}
                           <td className="px-4 sm:px-6 py-4 text-sm text-gray-900">
                             <div className="max-w-xs truncate">
                               {inspection.address}
@@ -222,37 +222,24 @@ export default function InspectionPage() {
                           </td>
                           <td className="px-4 sm:px-6 py-4 text-sm text-gray-500">
                             <div className="max-w-xs truncate">
-                              {inspection.description}
+                              {inspection.issue_field}
                             </div>
                           </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(inspection.status)}
                           </td>
-                        
+
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {inspection.assignment_status || "N/A"}
+                          </td>
+
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {inspection.expected_completion_date || "N/A"}
                           </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {inspection.days_left !== undefined && inspection.days_left !== null && inspection.days_left !== "" ? inspection.days_left : "-"}
                           </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleEdit(inspection.id)}
-                                className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              {/* <button
-                                // onClick={() => handleDelete(inspection.id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button> */}
-                            </div>
-                          </td>
+
                         </tr>
                       ))}
                     </tbody>

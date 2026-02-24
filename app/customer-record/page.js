@@ -26,7 +26,7 @@ export default function CustomerRecordPage() {
     try {
       dispatch(setLoading(true));
       const response = await axiosClient.get(
-        `/get/customer-record?page=${page}&per_page=20`
+        `/get/customer-record?page=${page}&per_page=30`
       );
 
       const data = response?.data?.data;
@@ -35,7 +35,7 @@ export default function CustomerRecordPage() {
           customerRecords: data.data || [],
           pagination: {
             total: data.total || 0,
-            per_page: data.per_page || 20,
+            per_page: data.per_page || 30,
             current_page: data.current_page || 1,
             last_page: data.last_page || 1,
           },
@@ -98,30 +98,19 @@ export default function CustomerRecordPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  // Calculate days from expiry to current date (daily update)
-  // If `expiryDate` is missing:
-  // - when `startDate` exists => show "No expiry"
-  // - otherwise show an infinity symbol to indicate no expiry set
-  const calculateDaysLeft = (expiryDate, startDate) => {
-    if (!expiryDate) {
-      if (startDate) {
-        return <span className="text-gray-600 font-semibold">No expiry</span>;
-      }
-      return <span className="text-gray-600 font-semibold">∞</span>;
-    }
-
+  const calculateDaysLeft = (expiryDate) => {
+    if (!expiryDate) return "N/A";
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
+    
     const expiry = new Date(expiryDate);
     expiry.setHours(0, 0, 0, 0);
-
+    
     const daysLeft = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-
+    
     if (daysLeft < 0) {
-      return (
-        <span className="text-red-600 font-semibold">Expired {Math.abs(daysLeft)} days ago</span>
-      );
+      return <span className="text-red-600 font-semibold">{daysLeft} days</span>;
     } else if (daysLeft === 0) {
       return <span className="text-orange-600 font-semibold">Expires Today</span>;
     } else if (daysLeft <= 30) {
@@ -222,7 +211,7 @@ export default function CustomerRecordPage() {
                             {formatDate(record.expiry_date)}
                           </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {calculateDaysLeft(record.expiry_date, record.start_date)}
+                            {calculateDaysLeft(record.expiry_date)}
                           </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(record.status)}
