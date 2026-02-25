@@ -270,8 +270,8 @@ export default function AddInspectionPage() {
               required
             >
               <option value="">Select Company Name</option>
-              <option value="tecnica">Tecnica</option>
-              <option value="isaac">Isaac</option>
+              <option value="tecnika">Tecnika</option>
+              <option value="iisacc">iisacc</option>
             </select>
           </div>
 

@@ -4,6 +4,179 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useAddPropertyEvidenceMutation, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
 import { toast } from "react-toastify";
 
+const HARDCODED_DOCUMENTS = [
+  {
+    main_folder: "Common Folder",
+    file_type: "GCGP",
+    documents: [
+      { name: "ASBAR", status: "Done", issue: "", issue_date: "2026-01-10" },
+      { name: "Assessment Pack", status: "Pending", issue: "as per query 664 Assessment pack required", issue_date: "" },
+      { name: "Bath Extractor_Electric minor Works", status: "Done", issue: "", issue_date: "2026-02-03" },
+      { name: "BREG EXTRACTOR FAN", status: "Done", issue: "Will Confirm with post ventilation", issue_date: "" },
+      { name: "BREG TRICKLE VENTS", status: "Done", issue: "Will Confirm with post ventilation", issue_date: "" },
+      { name: "Cavity Filled Evidence Main", status: "Not Required", issue: "", issue_date: "" },
+      { name: "Cavity Filled Evidence Ext 1", status: "Not Required", issue: "", issue_date: "" },
+      { name: "Corelogic ABS Screenshot", status: "Not Required", issue: "", issue_date: "" },
+      { name: "EPOP", status: "Done", issue: "Flue issue pointed", issue_date: "" },
+      { name: "ESTC", status: "Done", issue: "", issue_date: "2026-01-10" },
+      { name: "Flat Roof SC EXT 1 evidence 150mm", status: "Not Required", issue: "", issue_date: "" },
+      { name: "Floor plan", status: "Done", issue: "", issue_date: "" },
+      { name: "HHEV", status: "Done", issue: "", issue_date: "2026-01-20" },
+      { name: "HTHE", status: "Done", issue: "", issue_date: "2026-01-12" },
+      { name: "Ofgem Rental", status: "Not Required", issue: "", issue_date: "" },
+      { name: "On-Gas Evidence", status: "Done", issue: "Unable to read the date provide clear picture", issue_date: "" },
+      { name: "PICI", status: "Done", issue: "Editable, Confirm first install as loft is 30/01", issue_date: "2026-02-05" },
+      { name: "PIPS", status: "Done", issue: "page 7 Title need to be miss as page 3, pagw 10 tick missing, Update Floor Plan", issue_date: "" },
+      { name: "PMHS", status: "Done", issue: "", issue_date: "" },
+      { name: "Post Code Finder", status: "Not Required", issue: "", issue_date: "" },
+      { name: "PRIV", status: "Done", issue: "", issue_date: "" },
+      { name: "Retrofit Risk Assessment", status: "Done", issue: "", issue_date: "" },
+      { name: "Room Height Evidence", status: "Done", issue: "Videos missing to verify", issue_date: "" },
+      { name: "Same Name Declaration", status: "Not Required", issue: "", issue_date: "" },
+      { name: "Secondary Heating Source Evidence", status: "Pending", issue: "", issue_date: "" },
+      { name: "SMEV", status: "Done", issue: "", issue_date: "" },
+      { name: "UBIL 1.. UBIL Customer", status: "Done", issue: "", issue_date: "2025-07-11" },
+      { name: "UBIL 2.. PRES Owner", status: "Not Required", issue: "", issue_date: "" },
+      { name: "Wall Thickness Main Cavity 300mm", status: "Done", issue: "", issue_date: "" },
+      { name: "Wall Thickness Ext 1 Cavity 300mm", status: "Not Required", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "Submission Loft",
+    file_type: "",
+    documents: [
+      { name: "BREG Loft", status: "Done", issue: "", issue_date: "" },
+      { name: "Loft_Insurance Gurantee", status: "KSDL", issue: "", issue_date: "" },
+      { name: "Loft_Materials and Workmanship", status: "KSDL", issue: "", issue_date: "" },
+      { name: "Loft_ Notification Certificate", status: "KSDL", issue: "", issue_date: "" },
+      { name: "Loft_Operative Competence", status: "Done", issue: "", issue_date: "" },
+      { name: "LDEC", status: "Done", issue: "", issue_date: "" },
+      { name: "PIBI Loft", status: "Done", issue: "", issue_date: "" },
+      { name: "Loft_Post Install photos", status: "Done", issue: "Loft Ventilation", issue_date: "2026-01-30" },
+      { name: "Loft_Mid Install photos", status: "Done", issue: "Flue issue pointed", issue_date: "" },
+      { name: "Loft_Pre Install photos", status: "Done", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "FTCH or HC or B",
+    file_type: "Boiler/HC/FTCH",
+    documents: [
+      { name: "BOILER__Insurance Gurantee", status: "BLB", issue: "", issue_date: "" },
+      { name: "BOILER_Materials and Workmanship", status: "BLB", issue: "", issue_date: "" },
+      { name: "BOILER_ Notification Certificate", status: "BLB", issue: "", issue_date: "" },
+      { name: "BCOM", status: "Done", issue: "", issue_date: "2026-02-03" },
+      { name: "BOILER_Operative Competence", status: "Done", issue: "", issue_date: "" },
+      { name: "BREG BOILER", status: "Done", issue: "", issue_date: "" },
+      { name: "BREG HC", status: "Done", issue: "", issue_date: "" },
+      { name: "BREG TRVS", status: "Not Required", issue: "", issue_date: "" },
+      { name: "BREG TTZC", status: "Done", issue: "Flue issue pointed", issue_date: "" },
+      { name: "BWOD", status: "Done", issue: "", issue_date: "" },
+      { name: "HTSC", status: "Done", issue: "compress", issue_date: "" },
+      { name: "PCDB A", status: "Done", issue: "", issue_date: "" },
+      { name: "PCDB B", status: "Done", issue: "", issue_date: "" },
+      { name: "PCDB TTZC", status: "Done", issue: "", issue_date: "" },
+      { name: "PIBI Boiler", status: "Done", issue: "", issue_date: "" },
+      { name: "Boiler_Post Install photos", status: "Done", issue: "Remove photo 2", issue_date: "2026-02-03" },
+      { name: "Boiler_Mid Install photos", status: "Done", issue: "Need Pre Boiler flue photo", issue_date: "" },
+      { name: "Boiler_Pre Install photos", status: "Done", issue: "Boiler Flue outside", issue_date: "" },
+      { name: "PIHC", status: "Done", issue: "", issue_date: "" },
+      { name: "PPES", status: "Done", issue: "Post code missing", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "BOILER",
+    documents: [
+      { name: "ADF1 EEM method statement", status: "Done", issue: "Wrong date", issue_date: "" },
+      { name: "Airtightness Strategy", status: "BLB", issue: "", issue_date: "" },
+      { name: "Assessment Data Entry", status: "Done", issue: "Pre ventilation pack required to verify", issue_date: "" },
+      { name: "Boiler-Method Statement 2023", status: "Done", issue: "", issue_date: "" },
+      { name: "Boiler Handover", status: "Done", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "HC",
+    documents: [
+      { name: "Claim of Compliance PAS 2030", status: "Done", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "LOFT",
+    documents: [
+      { name: "Claim of Compliance PAS 2030", status: "Done", issue: "Title need to change to MIss", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "BOILER",
+    documents: [
+      { name: "Claim of Compliance PAS 2035", status: "Done", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "HC",
+    documents: [
+      { name: "Claim of Compliance PAS 2035", status: "Done", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "LOFT",
+    documents: [
+      { name: "Claim of Compliance PAS 2035", status: "Done", issue: "", issue_date: "" },
+      { name: "Conflict of interest statement", status: "Done", issue: "", issue_date: "" },
+      { name: "Coordinator Handover Letter", status: "Errors", issue: "Title issue and Loft install date missing", issue_date: "" },
+      { name: "ELEC_Operative Competence", status: "Done", issue: "", issue_date: "" },
+      { name: "GD F16 - Claim of Compliance 2023 Boiler", status: "Done", issue: "", issue_date: "" },
+      { name: "GD F16 - Claim of Compliance 2023 hc", status: "Done", issue: "", issue_date: "" },
+      { name: "GD F16 - Claim of Compliance 2023 Loft", status: "Done", issue: "", issue_date: "" },
+      { name: "HC Handover", status: "Done", issue: "", issue_date: "" },
+      { name: "HC-Method Statement 2023", status: "Not Required", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "Post Ventilation",
+    documents: [
+      { name: "Installed Ventilation Photos", status: "Pending", issue: "", issue_date: "" },
+      { name: "Loft Handover", status: "Done", issue: "", issue_date: "" },
+      { name: "LOFT-Method Statement 2023", status: "Errors", issue: "number wrong", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "Pre Ventilation",
+    documents: [
+      { name: "PRE Ventilation Pack", status: "Pending", issue: "", issue_date: "" },
+      { name: "Heat Demand Calculator", status: "Done", issue: "", issue_date: "" },
+      { name: "RA_Retrofit Assessor qualification", status: "Done", issue: "", issue_date: "" },
+      { name: "RC_Retrofit Coordinator Qualification", status: "Done", issue: "", issue_date: "" },
+      { name: "Retrofit design", status: "Done", issue: "", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "RC1",
+    file_type: "Appendix D",
+    documents: [
+      { name: "Ventilation Assessment Check list Appendix D", status: "Done", issue: "", issue_date: "" },
+      { name: "Ventilation assessment reference", status: "Done", issue: "", issue_date: "" },
+      { name: "Ventilation Strategy", status: "Done", issue: "Pre ventilation pack required to verify", issue_date: "" },
+    ],
+  },
+  {
+    main_folder: "Additional Data",
+    file_type: "",
+    documents: [
+      { name: "EPC matching Room Height Videos", status: "Done", issue: "", issue_date: "" },
+      { name: "Boiler_Post Install Video", status: "Not Required", issue: "", issue_date: "" },
+      { name: "PMHS Video", status: "Done", issue: "Video is not good. flue and any pipe work?", issue_date: "" },
+    ],
+  },
+];
+
 const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) => {
   const FIXED_FLOOR_NAMES = [
     "First floor area",
@@ -32,7 +205,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     lead_provider: "",
     property_ownership: "",
     services: [],
-    documents: [],
+    documents: JSON.parse(JSON.stringify(HARDCODED_DOCUMENTS)),
     make_model_serial: "",
     data_plate: "",
     epc_link: "",
@@ -150,8 +323,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         lead_id: leadId,
         // populate services from lead.services
         services: lead.services || [],
-        // populate documents from lead.documents
-        documents: lead.documents || [],
+        // populate documents from lead.documents (keep hardcoded default if lead has none)
+        documents: (Array.isArray(lead.documents) && lead.documents.length > 0) ? lead.documents : prev.documents,
       }));
     }
   }, [leadData, leadId, isOpen]);
@@ -500,7 +673,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         lead_provider: "",
         property_ownership: "",
         services: [],
-        documents: [],
+        documents: JSON.parse(JSON.stringify(HARDCODED_DOCUMENTS)),
         make_model_serial: "",
         data_plate: "",
         epc_link: "",
@@ -651,7 +824,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 <h3 className="text-lg font-semibold mb-4">Lead Information</h3>
 
                 <div className="grid grid-cols-2 gap-4">
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Name *</label>
                     <input
@@ -677,7 +850,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Phone</label>
                     <input
@@ -1037,7 +1210,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       <option value="not_available">Not Available</option>
                     </select>
                   </div>
-                  
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Shower Type</label>
@@ -1054,7 +1227,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   </div>
                 </div>
 
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Gas and Electric Meters</label>
@@ -1067,10 +1240,10 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       <option value="">Select...</option>
                       <option value="check and verified">Check and verified</option>
                       <option value="gas_meter">Photos</option>
-                    
+
                     </select>
                   </div>
-                  
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Gas and Electric Heater</label>
@@ -1102,7 +1275,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       <option value="Photos Missing">Photos Missing</option>
                     </select>
                   </div>
-                  
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Rear Elevation all angle photos and issues EPOP</label>
