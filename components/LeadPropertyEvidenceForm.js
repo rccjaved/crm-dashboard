@@ -9,170 +9,170 @@ const HARDCODED_DOCUMENTS = [
     main_folder: "Common Folder",
     file_type: "GCGP",
     documents: [
-      { name: "ASBAR", status: "Done", issue: "", issue_date: "2026-01-10" },
-      { name: "Assessment Pack", status: "Pending", issue: "as per query 664 Assessment pack required", issue_date: "" },
-      { name: "Bath Extractor_Electric minor Works", status: "Done", issue: "", issue_date: "2026-02-03" },
-      { name: "BREG EXTRACTOR FAN", status: "Done", issue: "Will Confirm with post ventilation", issue_date: "" },
-      { name: "BREG TRICKLE VENTS", status: "Done", issue: "Will Confirm with post ventilation", issue_date: "" },
-      { name: "Cavity Filled Evidence Main", status: "Not Required", issue: "", issue_date: "" },
-      { name: "Cavity Filled Evidence Ext 1", status: "Not Required", issue: "", issue_date: "" },
-      { name: "Corelogic ABS Screenshot", status: "Not Required", issue: "", issue_date: "" },
-      { name: "EPOP", status: "Done", issue: "Flue issue pointed", issue_date: "" },
-      { name: "ESTC", status: "Done", issue: "", issue_date: "2026-01-10" },
-      { name: "Flat Roof SC EXT 1 evidence 150mm", status: "Not Required", issue: "", issue_date: "" },
-      { name: "Floor plan", status: "Done", issue: "", issue_date: "" },
-      { name: "HHEV", status: "Done", issue: "", issue_date: "2026-01-20" },
-      { name: "HTHE", status: "Done", issue: "", issue_date: "2026-01-12" },
-      { name: "Ofgem Rental", status: "Not Required", issue: "", issue_date: "" },
-      { name: "On-Gas Evidence", status: "Done", issue: "Unable to read the date provide clear picture", issue_date: "" },
-      { name: "PICI", status: "Done", issue: "Editable, Confirm first install as loft is 30/01", issue_date: "2026-02-05" },
-      { name: "PIPS", status: "Done", issue: "page 7 Title need to be miss as page 3, pagw 10 tick missing, Update Floor Plan", issue_date: "" },
-      { name: "PMHS", status: "Done", issue: "", issue_date: "" },
-      { name: "Post Code Finder", status: "Not Required", issue: "", issue_date: "" },
-      { name: "PRIV", status: "Done", issue: "", issue_date: "" },
-      { name: "Retrofit Risk Assessment", status: "Done", issue: "", issue_date: "" },
-      { name: "Room Height Evidence", status: "Done", issue: "Videos missing to verify", issue_date: "" },
-      { name: "Same Name Declaration", status: "Not Required", issue: "", issue_date: "" },
-      { name: "Secondary Heating Source Evidence", status: "Pending", issue: "", issue_date: "" },
-      { name: "SMEV", status: "Done", issue: "", issue_date: "" },
-      { name: "UBIL 1.. UBIL Customer", status: "Done", issue: "", issue_date: "2025-07-11" },
-      { name: "UBIL 2.. PRES Owner", status: "Not Required", issue: "", issue_date: "" },
-      { name: "Wall Thickness Main Cavity 300mm", status: "Done", issue: "", issue_date: "" },
-      { name: "Wall Thickness Ext 1 Cavity 300mm", status: "Not Required", issue: "", issue_date: "" },
+      { name: "ASBAR", status: "", issue: "" },
+      { name: "Assessment Pack", status: "", issue: "" },
+      { name: "Bath Extractor_Electric minor Works", status: "", issue: "" },
+      { name: "BREG EXTRACTOR FAN", status: "", issue: "" },
+      { name: "BREG TRICKLE VENTS", status: "", issue: "" },
+      { name: "Cavity Filled Evidence Main", status: "", issue: "" },
+      { name: "Cavity Filled Evidence Ext 1", status: "", issue: "" },
+      { name: "Corelogic ABS Screenshot", status: "", issue: "" },
+      { name: "EPOP", status: "", issue: "" },
+      { name: "ESTC", status: "", issue: "" },
+      { name: "Flat Roof SC EXT 1 evidence 150mm", status: "", issue: "" },
+      { name: "Floor plan", status: "", issue: "" },
+      { name: "HHEV", status: "", issue: "" },
+      { name: "HTHE", status: "", issue: "" },
+      { name: "Ofgem Rental", status: "", issue: "" },
+      { name: "On-Gas Evidence", status: "", issue: "" },
+      { name: "PICI", status: "", issue: "" },
+      { name: "PIPS", status: "", issue: "" },
+      { name: "PMHS", status: "", issue: "" },
+      { name: "Post Code Finder", status: "", issue: "" },
+      { name: "PRIV", status: "", issue: "" },
+      { name: "Retrofit Risk Assessment", status: "", issue: "" },
+      { name: "Room Height Evidence", status: "", issue: "" },
+      { name: "Same Name Declaration", status: "", issue: "" },
+      { name: "Secondary Heating Source Evidence", status: "", issue: "" },
+      { name: "SMEV", status: "", issue: "" },
+      { name: "UBIL 1.. UBIL Customer", status: "", issue: "" },
+      { name: "UBIL 2.. PRES Owner", status: "", issue: "" },
+      { name: "Wall Thickness Main Cavity 300mm", status: "", issue: "" },
+      { name: "Wall Thickness Ext 1 Cavity 300mm", status: "", issue: "" },
     ],
   },
   {
     main_folder: "Submission Loft",
-    file_type: "",
+    file_type: "Loft",
     documents: [
-      { name: "BREG Loft", status: "Done", issue: "", issue_date: "" },
-      { name: "Loft_Insurance Gurantee", status: "KSDL", issue: "", issue_date: "" },
-      { name: "Loft_Materials and Workmanship", status: "KSDL", issue: "", issue_date: "" },
-      { name: "Loft_ Notification Certificate", status: "KSDL", issue: "", issue_date: "" },
-      { name: "Loft_Operative Competence", status: "Done", issue: "", issue_date: "" },
-      { name: "LDEC", status: "Done", issue: "", issue_date: "" },
-      { name: "PIBI Loft", status: "Done", issue: "", issue_date: "" },
-      { name: "Loft_Post Install photos", status: "Done", issue: "Loft Ventilation", issue_date: "2026-01-30" },
-      { name: "Loft_Mid Install photos", status: "Done", issue: "Flue issue pointed", issue_date: "" },
-      { name: "Loft_Pre Install photos", status: "Done", issue: "", issue_date: "" },
+      { name: "BREG Loft", status: "", issue: "" },
+      { name: "Loft_Insurance Gurantee", status: "", issue: "" },
+      { name: "Loft_Materials and Workmanship", status: "", issue: "" },
+      { name: "Loft_ Notification Certificate", status: "", issue: "" },
+      { name: "Loft_Operative Competence", status: "", issue: "" },
+      { name: "LDEC", status: "", issue: "" },
+      { name: "PIBI Loft", status: "", issue: "" },
+      { name: "Loft_Post Install photos", status: "", issue: "" },
+      { name: "Loft_Mid Install photos", status: "", issue: "" },
+      { name: "Loft_Pre Install photos", status: "", issue: "" },
     ],
   },
   {
     main_folder: "FTCH or HC or B",
     file_type: "Boiler/HC/FTCH",
     documents: [
-      { name: "BOILER__Insurance Gurantee", status: "BLB", issue: "", issue_date: "" },
-      { name: "BOILER_Materials and Workmanship", status: "BLB", issue: "", issue_date: "" },
-      { name: "BOILER_ Notification Certificate", status: "BLB", issue: "", issue_date: "" },
-      { name: "BCOM", status: "Done", issue: "", issue_date: "2026-02-03" },
-      { name: "BOILER_Operative Competence", status: "Done", issue: "", issue_date: "" },
-      { name: "BREG BOILER", status: "Done", issue: "", issue_date: "" },
-      { name: "BREG HC", status: "Done", issue: "", issue_date: "" },
-      { name: "BREG TRVS", status: "Not Required", issue: "", issue_date: "" },
-      { name: "BREG TTZC", status: "Done", issue: "Flue issue pointed", issue_date: "" },
-      { name: "BWOD", status: "Done", issue: "", issue_date: "" },
-      { name: "HTSC", status: "Done", issue: "compress", issue_date: "" },
-      { name: "PCDB A", status: "Done", issue: "", issue_date: "" },
-      { name: "PCDB B", status: "Done", issue: "", issue_date: "" },
-      { name: "PCDB TTZC", status: "Done", issue: "", issue_date: "" },
-      { name: "PIBI Boiler", status: "Done", issue: "", issue_date: "" },
-      { name: "Boiler_Post Install photos", status: "Done", issue: "Remove photo 2", issue_date: "2026-02-03" },
-      { name: "Boiler_Mid Install photos", status: "Done", issue: "Need Pre Boiler flue photo", issue_date: "" },
-      { name: "Boiler_Pre Install photos", status: "Done", issue: "Boiler Flue outside", issue_date: "" },
-      { name: "PIHC", status: "Done", issue: "", issue_date: "" },
-      { name: "PPES", status: "Done", issue: "Post code missing", issue_date: "" },
+      { name: "BOILER__Insurance Gurantee", status: "", issue: "" },
+      { name: "BOILER_Materials and Workmanship", status: "", issue: "" },
+      { name: "BOILER_ Notification Certificate", status: "", issue: "" },
+      { name: "BCOM", status: "", issue: "" },
+      { name: "BOILER_Operative Competence", status: "", issue: "" },
+      { name: "BREG BOILER", status: "", issue: "" },
+      { name: "BREG HC", status: "", issue: "" },
+      { name: "BREG TRVS", status: "", issue: "" },
+      { name: "BREG TTZC", status: "", issue: "" },
+      { name: "BWOD", status: "", issue: "" },
+      { name: "HTSC", status: "", issue: "" },
+      { name: "PCDB A", status: "", issue: "" },
+      { name: "PCDB B", status: "", issue: "" },
+      { name: "PCDB TTZC", status: "", issue: "" },
+      { name: "PIBI Boiler", status: "", issue: "" },
+      { name: "Boiler_Post Install photos", status: "", issue: "" },
+      { name: "Boiler_Mid Install photos", status: "", issue: "" },
+      { name: "Boiler_Pre Install photos", status: "", issue: "" },
+      { name: "PIHC", status: "", issue: "" },
+      { name: "PPES", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "BOILER",
     documents: [
-      { name: "ADF1 EEM method statement", status: "Done", issue: "Wrong date", issue_date: "" },
-      { name: "Airtightness Strategy", status: "BLB", issue: "", issue_date: "" },
-      { name: "Assessment Data Entry", status: "Done", issue: "Pre ventilation pack required to verify", issue_date: "" },
-      { name: "Boiler-Method Statement 2023", status: "Done", issue: "", issue_date: "" },
-      { name: "Boiler Handover", status: "Done", issue: "", issue_date: "" },
+      { name: "ADF1 EEM method statement", status: "", issue: "" },
+      { name: "Airtightness Strategy", status: "", issue: "" },
+      { name: "Assessment Data Entry", status: "", issue: "" },
+      { name: "Boiler-Method Statement 2023", status: "", issue: "" },
+      { name: "Boiler Handover", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "HC",
     documents: [
-      { name: "Claim of Compliance PAS 2030", status: "Done", issue: "", issue_date: "" },
+      { name: "Claim of Compliance PAS 2030", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "LOFT",
     documents: [
-      { name: "Claim of Compliance PAS 2030", status: "Done", issue: "Title need to change to MIss", issue_date: "" },
+      { name: "Claim of Compliance PAS 2030", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "BOILER",
     documents: [
-      { name: "Claim of Compliance PAS 2035", status: "Done", issue: "", issue_date: "" },
+      { name: "Claim of Compliance PAS 2035", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "HC",
     documents: [
-      { name: "Claim of Compliance PAS 2035", status: "Done", issue: "", issue_date: "" },
+      { name: "Claim of Compliance PAS 2035", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "LOFT",
     documents: [
-      { name: "Claim of Compliance PAS 2035", status: "Done", issue: "", issue_date: "" },
-      { name: "Conflict of interest statement", status: "Done", issue: "", issue_date: "" },
-      { name: "Coordinator Handover Letter", status: "Errors", issue: "Title issue and Loft install date missing", issue_date: "" },
-      { name: "ELEC_Operative Competence", status: "Done", issue: "", issue_date: "" },
-      { name: "GD F16 - Claim of Compliance 2023 Boiler", status: "Done", issue: "", issue_date: "" },
-      { name: "GD F16 - Claim of Compliance 2023 hc", status: "Done", issue: "", issue_date: "" },
-      { name: "GD F16 - Claim of Compliance 2023 Loft", status: "Done", issue: "", issue_date: "" },
-      { name: "HC Handover", status: "Done", issue: "", issue_date: "" },
-      { name: "HC-Method Statement 2023", status: "Not Required", issue: "", issue_date: "" },
+      { name: "Claim of Compliance PAS 2035", status: "", issue: "" },
+      { name: "Conflict of interest statement", status: "", issue: "" },
+      { name: "Coordinator Handover Letter", status: "", issue: "" },
+      { name: "ELEC_Operative Competence", status: "", issue: "" },
+      { name: "GD F16 - Claim of Compliance 2023 Boiler", status: "", issue: "" },
+      { name: "GD F16 - Claim of Compliance 2023 hc", status: "", issue: "" },
+      { name: "GD F16 - Claim of Compliance 2023 Loft", status: "", issue: "" },
+      { name: "HC Handover", status: "", issue: "" },
+      { name: "HC-Method Statement 2023", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "Post Ventilation",
     documents: [
-      { name: "Installed Ventilation Photos", status: "Pending", issue: "", issue_date: "" },
-      { name: "Loft Handover", status: "Done", issue: "", issue_date: "" },
-      { name: "LOFT-Method Statement 2023", status: "Errors", issue: "number wrong", issue_date: "" },
+      { name: "Installed Ventilation Photos", status: "", issue: "" },
+      { name: "Loft Handover", status: "", issue: "" },
+      { name: "LOFT-Method Statement 2023", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "Pre Ventilation",
     documents: [
-      { name: "PRE Ventilation Pack", status: "Pending", issue: "", issue_date: "" },
-      { name: "Heat Demand Calculator", status: "Done", issue: "", issue_date: "" },
-      { name: "RA_Retrofit Assessor qualification", status: "Done", issue: "", issue_date: "" },
-      { name: "RC_Retrofit Coordinator Qualification", status: "Done", issue: "", issue_date: "" },
-      { name: "Retrofit design", status: "Done", issue: "", issue_date: "" },
+      { name: "PRE Ventilation Pack", status: "", issue: "" },
+      { name: "Heat Demand Calculator", status: "", issue: "" },
+      { name: "RA_Retrofit Assessor qualification", status: "", issue: "" },
+      { name: "RC_Retrofit Coordinator Qualification", status: "", issue: "" },
+      { name: "Retrofit design", status: "", issue: "" },
     ],
   },
   {
     main_folder: "RC1",
     file_type: "Appendix D",
     documents: [
-      { name: "Ventilation Assessment Check list Appendix D", status: "Done", issue: "", issue_date: "" },
-      { name: "Ventilation assessment reference", status: "Done", issue: "", issue_date: "" },
-      { name: "Ventilation Strategy", status: "Done", issue: "Pre ventilation pack required to verify", issue_date: "" },
+      { name: "Ventilation Assessment Check list Appendix D", status: "", issue: "" },
+      { name: "Ventilation assessment reference", status: "", issue: "" },
+      { name: "Ventilation Strategy", status: "", issue: "" },
     ],
   },
   {
     main_folder: "Additional Data",
     file_type: "",
     documents: [
-      { name: "EPC matching Room Height Videos", status: "Done", issue: "", issue_date: "" },
-      { name: "Boiler_Post Install Video", status: "Not Required", issue: "", issue_date: "" },
-      { name: "PMHS Video", status: "Done", issue: "Video is not good. flue and any pipe work?", issue_date: "" },
+      { name: "EPC matching Room Height Videos", status: "", issue: "" },
+      { name: "Boiler_Post Install Video", status: "", issue: "" },
+      { name: "PMHS Video", status: "", issue: "" },
     ],
   },
 ];
@@ -539,7 +539,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     setFormData((prev) => {
       const arr = Array.isArray(prev.documents) ? [...prev.documents] : [];
       const g = { ...(arr[groupIndex] || { documents: [] }) };
-      g.documents = [...(Array.isArray(g.documents) ? g.documents : []), { name: "", status: "", issue: "", issue_date: "" }];
+      g.documents = [...(Array.isArray(g.documents) ? g.documents : []), { name: "", status: "", issue: "" }];
       arr[groupIndex] = g;
       return { ...prev, documents: arr };
     });
@@ -920,7 +920,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Services Required</label>
+                  <label className="block text-sm font-medium text-gray-700">Proposed Measures</label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {[
                       "EWI",
@@ -1885,65 +1885,127 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 <h3 className="text-lg font-semibold mb-4">Documents</h3>
 
                 <div className="space-y-4">
-                  {(Array.isArray(formData.documents) ? formData.documents : []).map((group, gi) => (
-                    <div key={gi} className="p-4 border rounded">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium">Main Folder</label>
-                          <input type="text" value={group.main_folder || ""} onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)} className="mt-1 block w-full px-3 py-2 border rounded" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium">File Type</label>
-                          <input type="text" value={group.file_type || ""} onChange={(e) => updateDocumentGroup(gi, 'file_type', e.target.value)} className="mt-1 block w-full px-3 py-2 border rounded" />
-                        </div>
-                        <div className="flex items-end">
-                          <button type="button" onClick={() => removeDocumentGroup(gi)} className="text-red-600">Remove Group</button>
-                        </div>
-                      </div>
+                  {(Array.isArray(formData.documents) ? formData.documents : []).map((group, gi) => {
+                    const services = Array.isArray(formData.services) ? formData.services.map(s => (s || "").toLowerCase()) : [];
+                    const isLoftService = services.some(s => s.includes("loft"));
+                    const isBoilerService = services.some(s => s.includes("boiler") || s.includes("ftch") || s.includes("hc") || s.includes("heating") || s.includes("control"));
 
-                      <div className="mt-3 space-y-2">
-                        {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
-                          <div key={di} className="grid grid-cols-12 gap-2 items-end">
-                            <div className="col-span-4">
-                              <label className="block text-sm">Name</label>
-                              <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-sm">Status</label>
-                              <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded">
-                                <option value="">Select...</option>
-                                <option value="Done">Done</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Not Required">Not Required</option>
-                                <option value="Pending Check">Pending Check</option>
-                                <option value="Incomplete">Incomplete</option>
-                                <option value="Errors">Errors</option>
-                                <option value="Scan Remaining">Scan Remaining</option>
-                                <option value="Signatures">Signatures</option>
-                                <option value="KSDL">KSDL</option>
-                                <option value="BLB">BLB</option>
-                              </select>
-                            </div>
-                            <div className="col-span-4">
-                              <label className="block text-sm">Issue</label>
-                              <input type="text" value={doc.issue || ""} onChange={(e) => updateDocumentRow(gi, di, 'issue', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-sm">Issue Date</label>
-                              <input type="date" value={doc.issue_date || ""} onChange={(e) => updateDocumentRow(gi, di, 'issue_date', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
-                            </div>
-                            <div className="col-span-12 text-right">
-                              <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-sm text-red-600">Remove</button>
-                            </div>
+                    const folderName = group.main_folder || "";
+
+                    // Conditionally hide Submission Loft
+                    if (folderName === "Submission Loft" && !isLoftService) {
+                      return null;
+                    }
+
+                    // Conditionally hide FTCH or HC or B
+                    if (folderName === "FTCH or HC or B" && !isBoilerService) {
+                      return null;
+                    }
+
+                    const colors = [
+                      "border-blue-400 bg-blue-50",
+                      "border-emerald-400 bg-emerald-50",
+                      "border-purple-400 bg-purple-50",
+                      "border-orange-400 bg-orange-50",
+                      "border-rose-400 bg-rose-50",
+                      "border-indigo-400 bg-indigo-50",
+                      "border-amber-400 bg-amber-50",
+                      "border-cyan-400 bg-cyan-50",
+                      "border-fuchsia-400 bg-fuchsia-50",
+                      "border-teal-400 bg-teal-50",
+                    ];
+                    const bgColors = [
+                      "bg-blue-100",
+                      "bg-emerald-100",
+                      "bg-purple-100",
+                      "bg-orange-100",
+                      "bg-rose-100",
+                      "bg-indigo-100",
+                      "bg-amber-100",
+                      "bg-cyan-100",
+                      "bg-fuchsia-100",
+                      "bg-teal-100",
+                    ];
+                    const colorClass = colors[gi % colors.length];
+                    const bgClass = bgColors[gi % bgColors.length];
+
+                    return (
+                      <div key={gi} className={`p-4 border-2 rounded-lg shadow-sm ${colorClass} transition-shadow hover:shadow-md`}>
+                        <div className="grid grid-cols-3 gap-4 mb-2 pb-2 border-b border-gray-300/50">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-800">Main Folder</label>
+                            <input type="text" value={group.main_folder || ""} onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)} className="mt-1 block w-full px-3 py-2 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
                           </div>
-                        ))}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-800">File Type</label>
+                            <input type="text" value={group.file_type || ""} onChange={(e) => updateDocumentGroup(gi, 'file_type', e.target.value)} className="mt-1 block w-full px-3 py-2 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
+                          </div>
+                          <div className="flex items-end justify-end">
+                            <button type="button" onClick={() => removeDocumentGroup(gi)} className="px-3 py-2 text-red-600 font-medium hover:bg-red-100 rounded transition-colors text-sm flex items-center gap-1">
+                              <X className="w-4 h-4" />
+                              Remove Group
+                            </button>
+                          </div>
+                        </div>
 
-                        <div>
-                          <button type="button" onClick={() => addDocumentRow(gi)} className="px-3 py-1 bg-gray-200 rounded">Add Document</button>
+                        <div className="mt-4 overflow-x-auto bg-white rounded-md shadow-sm border border-gray-200">
+                          <table className="w-full text-sm text-left border-collapse">
+                            <thead className={`${bgClass} uppercase text-gray-800 font-semibold border-b`}>
+                              <tr>
+                                <th className="px-3 py-3 border-r font-medium">Name</th>
+                                <th className="px-3 py-3 border-r font-medium w-48">Status</th>
+                                <th className="px-3 py-3 border-r font-medium">Issue</th>
+                                <th className="px-3 py-3 font-medium w-16 text-center">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                                <tr key={di} className="border-b hover:bg-gray-50/80 transition-colors last:border-b-0">
+                                  <td className="px-3 py-2 border-r bg-white align-top">
+                                    <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="w-full px-2 py-1.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-300 focus:ring-1 focus:ring-blue-300" />
+                                  </td>
+                                  <td className="px-3 py-2 border-r bg-white align-top">
+                                    <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="w-full px-2 py-1.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-300 focus:ring-1 focus:ring-blue-300">
+                                      <option value="">Select...</option>
+                                      <option value="Done">Done</option>
+                                      <option value="Pending">Pending</option>
+                                      <option value="Not Required">Not Required</option>
+                                      <option value="Pending Check">Pending Check</option>
+                                      <option value="Incomplete">Incomplete</option>
+                                      <option value="Errors">Errors</option>
+                                      <option value="Scan Remaining">Scan Remaining</option>
+                                      <option value="Signatures">Signatures</option>
+                                      <option value="KSDL">KSDL</option>
+                                      <option value="BLB">BLB</option>
+                                    </select>
+                                  </td>
+                                  <td className="px-3 py-2 border-r bg-white align-top">
+                                    <textarea
+                                      value={doc.issue || ""}
+                                      onChange={(e) => updateDocumentRow(gi, di, 'issue', e.target.value)}
+                                      className="w-full px-2 py-1.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-300 focus:ring-1 focus:ring-blue-300 resize-y min-h-[38px]"
+                                      rows="1"
+                                      placeholder="Note any issues..."
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2 text-center bg-white align-top pt-3">
+                                    <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-red-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50" title="Remove Document">
+                                      <X className="w-5 h-5 mx-auto" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <div className="p-3 bg-gray-50 border-t flex justify-between items-center">
+                            <button type="button" onClick={() => addDocumentRow(gi)} className="px-4 py-1.5 bg-gray-200 text-gray-700 font-medium rounded text-sm hover:bg-gray-300 transition-colors shadow-sm">
+                              + Add Document
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <div>
                     <button type="button" onClick={addDocumentGroup} className="px-3 py-1 bg-gray-200 rounded">Add Document Group</button>
