@@ -78,8 +78,8 @@ export default function EditTrustmarkPage() {
           status: trustmark.status || "",
           photos: trustmark.photos
             ? Array.isArray(trustmark.photos)
-                ? trustmark.photos.map((p) => (p?.url ? p.url : p)).join(",")
-                : trustmark.photos
+              ? trustmark.photos.map((p) => (p?.url ? p.url : p)).join(",")
+              : trustmark.photos
             : "",
           case_open_date: formatDateForInput(trustmark.case_open_date) || "",
           expected_completion_date:
@@ -376,13 +376,14 @@ export default function EditTrustmarkPage() {
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
+                  <option value="rework">Rework</option>
                 </select>
               </div>
 
               {/* Review Status */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Review Status
+                  Priority
                 </label>
                 <select
                   name="review_status"
@@ -390,10 +391,9 @@ export default function EditTrustmarkPage() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_review">In Review</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
                 </select>
               </div>
 
@@ -414,7 +414,7 @@ export default function EditTrustmarkPage() {
               {/* Photos */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Photos (http(s) URL, comma separated)
+                  Folder URL
                 </label>
                 <input
                   type="text"
@@ -454,7 +454,7 @@ export default function EditTrustmarkPage() {
                 />
               </div>
 
-           
+
 
               {/* Photos */}
               {/* <div>

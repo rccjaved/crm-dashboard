@@ -229,21 +229,21 @@ export default function EditComplaintPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                </div>
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
 
-                {/* Address */}
+              {/* Address */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Address
@@ -254,7 +254,7 @@ export default function EditComplaintPage() {
                   value={formData.address}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
+
                 />
               </div>
 
@@ -269,7 +269,7 @@ export default function EditComplaintPage() {
                   onChange={handleInputChange}
                   rows="4"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
-                  required
+
                 />
               </div>
 
@@ -308,18 +308,17 @@ export default function EditComplaintPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Review Status</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
                   <select
                     name="review_status"
                     value={formData.review_status}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   >
-                    <option value="">Select Review Status</option>
-                    <option value="not_started">Not Started</option>
-                    <option value="in_review">In Review</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
+                    <option value="">Select Priority</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
                   </select>
                 </div>
               </div>
@@ -336,7 +335,7 @@ export default function EditComplaintPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Photo URL</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Complaint URL</label>
                   <input
                     type="text"
                     name="photo"
@@ -347,7 +346,7 @@ export default function EditComplaintPage() {
                 </div>
               </div>
 
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Office Notes</label>
                 <textarea
                   name="office_notes"
@@ -356,8 +355,8 @@ export default function EditComplaintPage() {
                   rows="3"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
                 />
-              </div>
-               {/* Expected Completion Date */}
+              </div> */}
+              {/* Expected Completion Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Expected Completion Date
@@ -395,17 +394,18 @@ export default function EditComplaintPage() {
                   value={formData.status}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
+
                 >
                   <option value="">Select Status</option>
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
+                  <option value="rework">Rework</option>
                 </select>
               </div>
 
-             
+
 
               {/* Buttons */}
               <div className="flex justify-end space-x-4 pt-6">

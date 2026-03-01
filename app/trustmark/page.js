@@ -64,8 +64,8 @@ export default function TrustmarkPage() {
           // backend returns `photos` as a string (possibly comma-separated).
           photo: item.photos
             ? (typeof item.photos === 'string' && item.photos.includes(',')
-                ? item.photos.split(',')[0].trim()
-                : item.photos)
+              ? item.photos.split(',')[0].trim()
+              : item.photos)
             : null,
           case_open_date: item.case_open_date,
           registered_at: formatDate(item.case_open_date || item.created_at),
@@ -249,22 +249,16 @@ export default function TrustmarkPage() {
                           Address
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Description
+                          Priority
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Photo
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date Registered
+                          Case open date
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Deadline
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Days Left
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Review Date
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
@@ -285,34 +279,9 @@ export default function TrustmarkPage() {
                               {trustmark.address}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                            <div className="line-clamp-2">
-                              {trustmark.description}
-                            </div>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                            {trustmark.review_status || 'N/A'}
                           </td>
-                          {/* Fixed Photo Column */}
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {trustmark.photo ? (
-                              <button
-                                onClick={() =>
-                                  handlePhotoPreview(
-                                    trustmark.photo,
-                                    trustmark.id
-                                  )
-                                }
-                                className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                                title="View Photo"
-                              >
-                                <Eye className="w-4 h-4" />
-                                Photo
-                              </button>
-                            ) : (
-                              <span className="text-gray-400 text-sm">
-                                No photo
-                              </span>
-                            )}
-                          </td>
-                          {/* End of Fixed Photo Column */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {trustmark.registered_at}
                           </td>
@@ -321,9 +290,6 @@ export default function TrustmarkPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {trustmark.days_left ?? 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {trustmark.review_testing_date}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(trustmark.status)}
@@ -337,13 +303,6 @@ export default function TrustmarkPage() {
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
-                              {/* <button
-                                // onClick={() => handleDelete(trustmark.id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button> */}
                             </div>
                           </td>
                         </tr>

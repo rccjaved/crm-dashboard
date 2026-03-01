@@ -182,7 +182,7 @@ export default function ComplaintPage() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   Users Complaint
@@ -248,32 +248,17 @@ export default function ComplaintPage() {
                           Address
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
+                          Priority
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Phone
+                          Case Open date
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Email
+                          Deadline
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Complaint Information
+                          Case open days
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Photo
-                        </th>
-                        {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Review Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date of Complaint
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Expected Completion
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Review Date
-                        </th> */}
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
@@ -292,34 +277,8 @@ export default function ComplaintPage() {
                           <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
                             <div className="line-clamp-2">{complaint.address}</div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                            <div className="line-clamp-1">{complaint.name || 'N/A'}</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                            <div className="line-clamp-1">{complaint.phone || 'N/A'}</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                            <div className="line-clamp-1">{complaint.email || 'N/A'}</div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
-                            <div className="line-clamp-2">{complaint.description}</div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {complaint.photo ? (
-                              <button
-                                onClick={() => handlePhotoPreview(complaint.photo, complaint.id)}
-                                className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
-                                title="View Photo"
-                              >
-                                <Eye className="w-4 h-4" />
-                              Photo
-                              </button>
-                            ) : (
-                              <span className="text-gray-400 text-sm">No photo</span>
-                            )}
-                          </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {complaint.review_status || 'N/A'}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                            {complaint.review_status?.replace('_', ' ') || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {complaint.registered_at}
@@ -328,8 +287,8 @@ export default function ComplaintPage() {
                             {complaint.expected_completion_date}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {complaint.review_testing_date}
-                          </td> */}
+                            {complaint.no_of_days || '0'}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {getStatusBadge(complaint.status)}
                           </td>
@@ -342,13 +301,6 @@ export default function ComplaintPage() {
                               >
                                 <Edit className="w-4 h-4" />
                               </button>
-                              {/* <button
-                                onClick={() => handleDelete(complaint.id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button> */}
                             </div>
                           </td>
                         </tr>

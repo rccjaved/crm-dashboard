@@ -17,7 +17,7 @@ export default function CreateComplaintPage() {
     phone: "",
     email: "",
     description: "",
-    case_open_date: new Date().toISOString().slice(0,10),
+    case_open_date: new Date().toISOString().slice(0, 10),
     status: "pending",
     expected_completion_date: "",
     review_testing_date: "",
@@ -72,11 +72,11 @@ export default function CreateComplaintPage() {
       const submitData = new FormData();
 
       // Required fields
-        submitData.append("project_id", formData.project_id);
-        submitData.append("name", formData.name);
+      submitData.append("project_id", formData.project_id);
+      submitData.append("name", formData.name);
       submitData.append("address", formData.address);
-        submitData.append("phone", formData.phone);
-        submitData.append("email", formData.email);
+      submitData.append("phone", formData.phone);
+      submitData.append("email", formData.email);
       submitData.append("description", formData.description);
       submitData.append("status", formData.status);
       submitData.append(
@@ -84,11 +84,11 @@ export default function CreateComplaintPage() {
         formData.expected_completion_date
       );
       submitData.append("review_testing_date", formData.review_testing_date);
-        submitData.append("case_open_date", formData.case_open_date);
-        submitData.append("photo", formData.photo);
-        submitData.append("review_status", formData.review_status);
-        submitData.append("no_of_days", formData.no_of_days);
-        submitData.append("office_notes", formData.office_notes);
+      submitData.append("case_open_date", formData.case_open_date);
+      submitData.append("photo", formData.photo);
+      submitData.append("review_status", formData.review_status);
+      submitData.append("no_of_days", formData.no_of_days);
+      submitData.append("office_notes", formData.office_notes);
       submitData.append("review_status", formData.review_status);
       submitData.append("assigned_to", formData.assigned_to);
 
@@ -222,35 +222,36 @@ export default function CreateComplaintPage() {
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="rework">Rework</option>
               </select>
             </div>
 
-          {/* Case Open Date (auto) & No. of Days (auto-calculated) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Case Open Date</label>
-              <input
-                type="date"
-                name="case_open_date"
-                value={formData.case_open_date}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                disabled
-              />
+            {/* Case Open Date (auto) & No. of Days (auto-calculated) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Case Open Date</label>
+                <input
+                  type="date"
+                  name="case_open_date"
+                  value={formData.case_open_date}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">No. of Days</label>
+                <input
+                  type="text"
+                  name="no_of_days"
+                  value={formData.no_of_days}
+                  onChange={handleInputChange}
+                  placeholder="Auto-calculated"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50"
+                  readOnly
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">No. of Days</label>
-              <input
-                type="text"
-                name="no_of_days"
-                value={formData.no_of_days}
-                onChange={handleInputChange}
-                placeholder="Auto-calculated"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-gray-50"
-                readOnly
-              />
-            </div>
-          </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -262,7 +263,7 @@ export default function CreateComplaintPage() {
                 value={formData.expected_completion_date}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
+
               />
             </div>
 
@@ -297,12 +298,12 @@ export default function CreateComplaintPage() {
                 value={formData.review_testing_date}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
+
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Review Status *
+                Priority *
               </label>
               <select
                 name="review_status"
@@ -311,16 +312,15 @@ export default function CreateComplaintPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 required
               >
-                <option value="not_started">Not Started</option>
-                <option value="in_review">In Review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
               </select>
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Complaint Image
+              Complaint URL
             </label>
             <input
               type="text"
@@ -332,6 +332,20 @@ export default function CreateComplaintPage() {
               required
             />
           </div>
+
+          {/* <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Office Notes
+            </label>
+            <textarea
+              name="office_notes"
+              value={formData.office_notes}
+              onChange={handleInputChange}
+              placeholder="Enter office notes"
+              rows="3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+            />
+          </div> */}
 
           {/* Review Status */}
 

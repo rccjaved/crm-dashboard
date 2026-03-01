@@ -26,7 +26,7 @@ export default function CreateTrustMarkPage() {
     review_testing_date: "",
     review_status: "pending",
     assigned_to: "",
-    case_open_date: new Date().toISOString().slice(0,10),
+    case_open_date: new Date().toISOString().slice(0, 10),
     seven_days_deadline: false,
     days_left: "",
     notes: "",
@@ -279,13 +279,14 @@ export default function CreateTrustMarkPage() {
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="rework">Rework</option>
             </select>
           </div>
 
           {/* Review Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Review Status *
+              Priority *
             </label>
             <select
               name="review_status"
@@ -295,9 +296,9 @@ export default function CreateTrustMarkPage() {
               required
             >
               <option value="pending">Pending</option>
-              <option value="in_review">In Review</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
             </select>
           </div>
 
@@ -318,7 +319,7 @@ export default function CreateTrustMarkPage() {
           {/* Photos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Complaint Image
+              Folder URL
             </label>
             <input
               type="text"
