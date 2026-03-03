@@ -92,80 +92,36 @@ const HARDCODED_DOCUMENTS = [
       { name: "Assessment Data Entry", status: "", issue: "" },
       { name: "Boiler-Method Statement 2023", status: "", issue: "" },
       { name: "Boiler Handover", status: "", issue: "" },
+      { name: "Claim of Compliance PAS 2030 -- HC", status: "", issue: "" },
+      { name: "Claim of Compliance PAS 2030 -- LOFT", status: "", issue: "" },
+      { name: "Claim of Compliance PAS 2035 -- BOILER", status: "", issue: "" },
+      { name: "Claim of Compliance PAS 2035 -- HC", status: "", issue: "" },
+
+      { name: "Claim of Compliance PAS 2035 -- LOFT", status: "", issue: "" },
+      { name: "Conflict of interest statement -- LOFT", status: "", issue: "" },
+      { name: "Coordinator Handover Letter -- LOFT", status: "", issue: "" },
+      { name: "ELEC_Operative Competence -- LOFT", status: "", issue: "" },
+      { name: "GD F16 - Claim of Compliance 2023 Boiler -- LOFT", status: "", issue: "" },
+      { name: "GD F16 - Claim of Compliance 2023 hc -- LOFT", status: "", issue: "" },
+      { name: "GD F16 - Claim of Compliance 2023 Loft -- LOFT", status: "", issue: "" },
+      { name: "HC Handover -- LOFT", status: "", issue: "" },
+      { name: "HC-Method Statement 2023 -- LOFT", status: "", issue: "" },
+      { name: "Installed Ventilation Photos --Post Ventilation", status: "", issue: "" },
+      { name: "Loft Handover --Post Ventilation", status: "", issue: "" },
+      { name: "LOFT-Method Statement 2023 --Post Ventilation", status: "", issue: "" },
+      { name: "PRE Ventilation Pack --Pre Ventilation", status: "", issue: "" },
+      { name: "Heat Demand Calculator --Pre Ventilation", status: "", issue: "" },
+      { name: "RA_Retrofit Assessor qualification --Pre Ventilation", status: "", issue: "" },
+      { name: "RC_Retrofit Coordinator Qualification --Pre Ventilation", status: "", issue: "" },
+      { name: "Retrofit design --Pre Ventilation", status: "", issue: "" },
+
+      { name: "Ventilation Assessment Check list Appendix D --Appendix D", status: "", issue: "" },
+      { name: "Ventilation assessment reference --Appendix D", status: "", issue: "" },
+      { name: "Ventilation Strategy --Appendix D", status: "", issue: "" },
+
     ],
   },
-  {
-    main_folder: "RC1",
-    file_type: "HC",
-    documents: [
-      { name: "Claim of Compliance PAS 2030", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "LOFT",
-    documents: [
-      { name: "Claim of Compliance PAS 2030", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "BOILER",
-    documents: [
-      { name: "Claim of Compliance PAS 2035", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "HC",
-    documents: [
-      { name: "Claim of Compliance PAS 2035", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "LOFT",
-    documents: [
-      { name: "Claim of Compliance PAS 2035", status: "", issue: "" },
-      { name: "Conflict of interest statement", status: "", issue: "" },
-      { name: "Coordinator Handover Letter", status: "", issue: "" },
-      { name: "ELEC_Operative Competence", status: "", issue: "" },
-      { name: "GD F16 - Claim of Compliance 2023 Boiler", status: "", issue: "" },
-      { name: "GD F16 - Claim of Compliance 2023 hc", status: "", issue: "" },
-      { name: "GD F16 - Claim of Compliance 2023 Loft", status: "", issue: "" },
-      { name: "HC Handover", status: "", issue: "" },
-      { name: "HC-Method Statement 2023", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "Post Ventilation",
-    documents: [
-      { name: "Installed Ventilation Photos", status: "", issue: "" },
-      { name: "Loft Handover", status: "", issue: "" },
-      { name: "LOFT-Method Statement 2023", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "Pre Ventilation",
-    documents: [
-      { name: "PRE Ventilation Pack", status: "", issue: "" },
-      { name: "Heat Demand Calculator", status: "", issue: "" },
-      { name: "RA_Retrofit Assessor qualification", status: "", issue: "" },
-      { name: "RC_Retrofit Coordinator Qualification", status: "", issue: "" },
-      { name: "Retrofit design", status: "", issue: "" },
-    ],
-  },
-  {
-    main_folder: "RC1",
-    file_type: "Appendix D",
-    documents: [
-      { name: "Ventilation Assessment Check list Appendix D", status: "", issue: "" },
-      { name: "Ventilation assessment reference", status: "", issue: "" },
-      { name: "Ventilation Strategy", status: "", issue: "" },
-    ],
-  },
+
   {
     main_folder: "Additional Data",
     file_type: "",
@@ -305,6 +261,9 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     solid_wall_area: null,
     glazed_area: null,
     wall_excluding_windows_pici: null,
+    alternate_phone: "",
+    dob: "",
+    benefits: "",
     total_wall_pici: null,
     popt: null,
   });
@@ -316,11 +275,16 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       setFormData((prev) => ({
         ...prev,
         name: lead.name || "",
+        dob: lead.dob ? lead.dob.split("T")[0] : "",
         email: lead.email || "",
         mobile: lead.mobile || "",
+        alternate_phone: lead.alternate_phone || "",
         address: lead.address || "",
         lead_date: lead.created_at ? lead.created_at.split("T")[0] : "",
         lead_id: leadId,
+        lead_provider: lead.lead_provider || "",
+        property_ownership: lead.property_ownership || "Owner Occupied",
+        benefits: Array.isArray(lead.benefits) ? lead.benefits[0] || "" : lead.benefits || "",
         // populate services from lead.services
         services: lead.services || [],
         // populate documents from lead.documents (keep hardcoded default if lead has none)
@@ -615,9 +579,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       const leadUpdateData = {
         id: formData.lead_id,
         name: formData.name,
+        dob: formData.dob,
         email: formData.email,
         mobile: formData.mobile,
+        alternate_phone: formData.alternate_phone,
         address: formData.address,
+        lead_provider: formData.lead_provider,
+        property_ownership: formData.property_ownership,
+        benefits: Array.isArray(formData.benefits) ? formData.benefits : [formData.benefits],
       };
 
       console.log("Updating lead:", leadUpdateData);
@@ -791,13 +760,13 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const content = (
     <div className="bg-white rounded-lg shadow-xl">
       {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky bg-white">
+      <div className="flex items-center justify-between p-3 border-b border-gray-200 top-0 bg-white z-10">
         <div>
-          <h2 className="text-xl font-bold">Lead Property Evidence</h2>
-          <p className="text-sm text-gray-600">Step {currentStep} of 7</p>
+          <h2 className="text-lg font-bold">Lead Property Evidence</h2>
+          <p className="text-xs text-gray-600">Step {currentStep} of 7</p>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
@@ -810,7 +779,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             e.preventDefault();
           }
         }}
-        className="p-6"
+        className="p-4"
       >
         {isLoadingLead ? (
           <div className="flex items-center justify-center py-12">
@@ -820,270 +789,246 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           <>
             {/* Step 1: Lead Provider Information */}
             {currentStep === 1 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Lead Information</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="e.g., William Hollins"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="e.g., williamhollis32@hotmail.com"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Phone</label>
-                    <input
-                      type="tel"
-                      name="mobile"
-                      value={formData.mobile}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 07895990665"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Lead Date</label>
-                    <input
-                      type="date"
-                      name="lead_date"
-                      value={formData.lead_date}
-                      onChange={handleInputChange}
-                      disabled
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Address</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address ?? ""}
-                    onChange={handleInputChange}
-                    placeholder="Lead address"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
-                <hr className="my-6" />
-
-                <h3 className="text-lg font-semibold mb-4">Lead Provider Information</h3>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Lead Provider *</label>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  {/* Row 1 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Lead Provider</label>
                     <input
                       type="text"
                       name="lead_provider"
                       value={formData.lead_provider}
                       onChange={handleInputChange}
-                      placeholder="e.g., Sarfaraz"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm font-bold"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Property Ownership</label>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Lead Date:</label>
+                    <input
+                      type="date"
+                      name="lead_date"
+                      value={formData.lead_date}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
+
+                  {/* Row 2 */}
+                  <div className="col-span-2 flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Address</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={formData.address ?? ""}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
+
+                  {/* Row 3 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Name.. Applicant</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      name="dob"
+                      value={formData.dob}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
+
+                  {/* Row 4 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Email Address</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Phone number</label>
+                    <input
+                      type="tel"
+                      name="mobile"
+                      value={formData.mobile}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
+
+                  {/* Row 5 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Property Ownership</label>
                     <select
                       name="property_ownership"
                       value={formData.property_ownership}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm bg-emerald-700 text-white rounded px-2"
                     >
-                      <option value="">Select...</option>
                       <option value="Owner Occupied">Owner Occupied</option>
                       <option value="Rented">Rented</option>
                       <option value="Mixed">Mixed</option>
                     </select>
                   </div>
-                </div>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Alternative Phone</label>
+                    <input
+                      type="tel"
+                      name="alternate_phone"
+                      value={formData.alternate_phone}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Proposed Measures</label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {[
-                      "EWI",
-                      "Boiler",
-                      "FTCH",
-                      "Loft Insulation",
-                      "Heating Control",
-                      "Single Measure",
-                      "Solar Panel Installation",
-                    ].map((s) => (
-                      <label key={s} className="inline-flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={Array.isArray(formData.services) && formData.services.includes(s)}
-                          onChange={() => {
-                            setFormData((p) => {
-                              const exists = Array.isArray(p.services) && p.services.includes(s);
-                              return { ...p, services: exists ? p.services.filter(x => x !== s) : [...(p.services || []), s] };
-                            });
-                          }}
-                        />
-                        <span className="text-sm">{s}</span>
-                      </label>
-                    ))}
+                  {/* Row 6 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Requested measures</label>
+                    <div className="flex-1 flex flex-wrap gap-x-3 gap-y-1 py-1">
+                      {[
+                        "EWI",
+                        "Boiler",
+                        "FTCH",
+                        "Loft Insulation",
+                        "Heating Control",
+                        "Single Measure",
+                        "Solar Panel Installation",
+                      ].map((s) => (
+                        <label key={s} className="inline-flex items-center space-x-1">
+                          <input
+                            type="checkbox"
+                            checked={Array.isArray(formData.services) && formData.services.includes(s)}
+                            onChange={() => {
+                              setFormData((p) => {
+                                const exists = Array.isArray(p.services) && p.services.includes(s);
+                                return { ...p, services: exists ? p.services.filter(x => x !== s) : [...(p.services || []), s] };
+                              });
+                            }}
+                            className="w-3 h-3"
+                          />
+                          <span className="text-xs">{s}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="col-span-2 flex items-start space-x-2 pt-1">
+                    <label className="text-sm font-semibold text-gray-700 w-32 shrink-0 pt-1">Type of Benefit</label>
+                    <div className="flex-1 flex flex-wrap gap-1.5">
+                      {[
+                        { label: "Income-based JSA", full: "Income-based Job seeker's Allowance", icon: "💼" },
+                        { label: "ESA (Income-related)", full: "Income-related Employment and Support Allowance", icon: "🏥" },
+                        { label: "Income Support", full: "Income Support", icon: "💷" },
+                        { label: "Pension Credit (GC)", full: "Pension Credit Guranatee Credit", icon: "👴" },
+                        { label: "Working Tax Credit", full: "Working Tax Credit", icon: "🧾" },
+                        { label: "Child Tax Credit", full: "Child Tax Credit", icon: "👶" },
+                        { label: "Universal Credit", full: "Universal Credit", icon: "🌐" },
+                        { label: "Housing Benefit", full: "Housing Benefit", icon: "🏠" },
+                        { label: "Pension Credit (SC)", full: "Pension Credit Saving Credits", icon: "💰" },
+                      ].map(({ label, full, icon }) => {
+                        const selected = Array.isArray(formData.benefits)
+                          ? formData.benefits.includes(full)
+                          : formData.benefits === full;
+                        return (
+                          <button
+                            key={full}
+                            type="button"
+                            title={full}
+                            onClick={() => {
+                              setFormData((p) => {
+                                const arr = Array.isArray(p.benefits) ? p.benefits : (p.benefits ? [p.benefits] : []);
+                                const exists = arr.includes(full);
+                                return { ...p, benefits: exists ? arr.filter(x => x !== full) : [...arr, full] };
+                              });
+                            }}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-all ${selected
+                                ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
+                                : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300"
+                              }`}
+                          >
+                            <span aria-hidden>{icon}</span>
+                            <span>{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-
               </div>
             )}
 
             {/* Step 2: Property & Link Details */}
             {currentStep === 2 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Property & Link Details</h3>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Property & Link Details</h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Make/Model Serial Number</label>
-                    <input
-                      type="text"
-                      name="make_model_serial"
-                      value={formData.make_model_serial}
-                      onChange={handleInputChange}
-                      placeholder="e.g., Glow Worm FuelSaver MKII"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                    <label className="block text-xs font-medium text-gray-600">Make/Model Serial Number</label>
+                    <input type="text" name="make_model_serial" value={formData.make_model_serial} onChange={handleInputChange} placeholder="e.g., Glow Worm FuelSaver MKII" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Data Plate</label>
-                    <input
-                      type="text"
-                      name="data_plate"
-                      value={formData.data_plate}
-                      onChange={handleInputChange}
-                      placeholder="e.g., DP-456"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                    <label className="block text-xs font-medium text-gray-600">Data Plate</label>
+                    <input type="text" name="data_plate" value={formData.data_plate} onChange={handleInputChange} placeholder="e.g., DP-456" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">EPC Link</label>
-                  <input
-                    type="url"
-                    name="epc_link"
-                    value={formData.epc_link}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/epc"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
+                  <label className="block text-xs font-medium text-gray-600">EPC Link</label>
+                  <input type="url" name="epc_link" value={formData.epc_link} onChange={handleInputChange} placeholder="https://example.com/epc" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Zoopla Link</label>
-                    <input
-                      type="url"
-                      name="zoopla_link"
-                      value={formData.zoopla_link}
-                      onChange={handleInputChange}
-                      placeholder="Link"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                    <label className="block text-xs font-medium text-gray-600">Zoopla Link</label>
+                    <input type="url" name="zoopla_link" value={formData.zoopla_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Right Move Link</label>
-                    <input
-                      type="url"
-                      name="rightmove_link"
-                      value={formData.rightmove_link}
-                      onChange={handleInputChange}
-                      placeholder="Link"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                    <label className="block text-xs font-medium text-gray-600">Right Move Link</label>
+                    <input type="url" name="rightmove_link" value={formData.rightmove_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Mouse Price Link</label>
-                    <input
-                      type="url"
-                      name="mouseprice_link"
-                      value={formData.mouseprice_link}
-                      onChange={handleInputChange}
-                      placeholder="Link"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                    <label className="block text-xs font-medium text-gray-600">Mouse Price Link</label>
+                    <input type="url" name="mouseprice_link" value={formData.mouseprice_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Property Checker Link</label>
-                    <input
-                      type="url"
-                      name="propertychecker_link"
-                      value={formData.propertychecker_link}
-                      onChange={handleInputChange}
-                      placeholder="Link"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                    <label className="block text-xs font-medium text-gray-600">Property Checker Link</label>
+                    <input type="url" name="propertychecker_link" value={formData.propertychecker_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Survey Folder Link</label>
-                  <input
-                    type="url"
-                    name="survey_folder_link"
-                    value={formData.survey_folder_link}
-                    onChange={handleInputChange}
-                    placeholder="Link"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
+                  <label className="block text-xs font-medium text-gray-600">Survey Folder Link</label>
+                  <input type="url" name="survey_folder_link" value={formData.survey_folder_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      name="google_maps_checked"
-                      checked={formData.google_maps_checked}
-                      onChange={handleInputChange}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium">Google Maps Checked</span>
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <label className="flex items-center space-x-1">
+                    <input type="checkbox" name="google_maps_checked" checked={formData.google_maps_checked} onChange={handleInputChange} className="w-3 h-3" />
+                    <span className="text-xs font-medium">Google Maps Checked</span>
                   </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      name="google_earth_checked"
-                      checked={formData.google_earth_checked}
-                      onChange={handleInputChange}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm font-medium">Google Earth Checked</span>
+                  <label className="flex items-center space-x-1">
+                    <input type="checkbox" name="google_earth_checked" checked={formData.google_earth_checked} onChange={handleInputChange} className="w-3 h-3" />
+                    <span className="text-xs font-medium">Google Earth Checked</span>
                   </label>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Requires C1</label>
-                    <select
-                      name="requires_c1"
-                      value={formData.requires_c1 === null ? "" : formData.requires_c1}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, requires_c1: e.target.value === "" ? null : e.target.value === "true" }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
+                    <label className="block text-xs font-medium text-gray-600">Requires C1</label>
+                    <select name="requires_c1" value={formData.requires_c1 === null ? "" : formData.requires_c1} onChange={(e) => setFormData((prev) => ({ ...prev, requires_c1: e.target.value === "" ? null : e.target.value === "true" }))} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded">
                       <option value="">Select...</option>
                       <option value="true">Yes</option>
                       <option value="false">No</option>
@@ -1092,22 +1037,16 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Booking Date</label>
-                  <input
-                    type="date"
-                    name="booking_date"
-                    value={formData.booking_date}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
+                  <label className="block text-xs font-medium text-gray-600">Booking Date</label>
+                  <input type="date" name="booking_date" value={formData.booking_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                 </div>
               </div>
             )}
 
             {/* Step 3: Mandatory Evidence */}
             {currentStep === 3 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Mandatory Evidence</h3>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Mandatory Evidence</h3>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -1193,14 +1132,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">GCGP</label>
+                    <label className="block text-xs font-medium text-gray-600">GCGP</label>
                     <select
                       name="gcgp"
                       value={formData.gcgp}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="gas_bill">Gas bill before Mar 2022</option>
@@ -1213,12 +1152,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Shower Type</label>
+                    <label className="block text-xs font-medium text-gray-600">Shower Type</label>
                     <select
                       name="shower_type"
                       value={formData.shower_type}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Electric">Electric</option>
@@ -1228,14 +1167,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Gas and Electric Meters</label>
+                    <label className="block text-xs font-medium text-gray-600">Gas and Electric Meters</label>
                     <select
                       name="gas_electric_meters"
                       value={formData.gas_electric_meters}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="check and verified">Check and verified</option>
@@ -1246,12 +1185,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Gas and Electric Heater</label>
+                    <label className="block text-xs font-medium text-gray-600">Gas and Electric Heater</label>
                     <select
                       name="heater_type"
                       value={formData.heater_type}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Electric">Gas Heater</option>
@@ -1261,14 +1200,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Front Elevation all angle photos and issues EPOP</label>
+                    <label className="block text-xs font-medium text-gray-600">Front Elevation all angle photos and issues EPOP</label>
                     <select
                       name="front_elevation_photos"
                       value={formData.front_elevation_photos}
                       onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1278,12 +1217,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Rear Elevation all angle photos and issues EPOP</label>
+                    <label className="block text-xs font-medium text-gray-600">Rear Elevation all angle photos and issues EPOP</label>
                     <select
                       name="rear_elevation_photos"
                       value={Array.isArray(formData.rear_elevation_photos) ? formData.rear_elevation_photos.join(", ") : (formData.rear_elevation_photos || "")}
                       onChange={(e) => handleArrayInput("rear_elevation_photos", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1294,14 +1233,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
 
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Wall thickness Main</label>
+                    <label className="block text-xs font-medium text-gray-600">Wall thickness Main</label>
                     <select
                       name="wall_thickness_main"
                       value={Array.isArray(formData.wall_thickness_main) ? formData.wall_thickness_main.join(", ") : (formData.wall_thickness_main || "")}
                       onChange={(e) => handleArrayInput("wall_thickness_main", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1309,12 +1248,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Wall Thickness Ext 1</label>
+                    <label className="block text-xs font-medium text-gray-600">Wall Thickness Ext 1</label>
                     <select
                       name="wall_thickness_ext_1"
                       value={Array.isArray(formData.wall_thickness_ext_1) ? formData.wall_thickness_ext_1.join(", ") : (formData.wall_thickness_ext_1 || "")}
                       onChange={(e) => handleArrayInput("wall_thickness_ext_1", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1322,12 +1261,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Wall Thickness Ext 2</label>
+                    <label className="block text-xs font-medium text-gray-600">Wall Thickness Ext 2</label>
                     <select
                       name="wall_thickness_ext_2"
                       value={Array.isArray(formData.wall_thickness_ext_2) ? formData.wall_thickness_ext_2.join(", ") : (formData.wall_thickness_ext_2 || "")}
                       onChange={(e) => handleArrayInput("wall_thickness_ext_2", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1336,14 +1275,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Pitched Roof Main (evidence added in PICP)</label>
+                    <label className="block text-xs font-medium text-gray-600">Pitched Roof Main (evidence added in PICP)</label>
                     <select
                       name="pitched_roof_main"
                       value={Array.isArray(formData.pitched_roof_main) ? formData.pitched_roof_main.join(", ") : (formData.pitched_roof_main || "")}
                       onChange={(e) => handleArrayInput("pitched_roof_main", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1351,12 +1290,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">PMHS with Dataplate, PRT, TRV and Gas Meter</label>
+                    <label className="block text-xs font-medium text-gray-600">PMHS with Dataplate, PRT, TRV and Gas Meter</label>
                     <select
                       name="pmhs_with_dataplate"
                       value={Array.isArray(formData.pmhs_with_dataplate) ? formData.pmhs_with_dataplate.join(", ") : (formData.pmhs_with_dataplate || "")}
                       onChange={(e) => handleArrayInput("pmhs_with_dataplate", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1365,14 +1304,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Pitched roof EXT 1 SC evidence 150mm</label>
+                    <label className="block text-xs font-medium text-gray-600">Pitched roof EXT 1 SC evidence 150mm</label>
                     <select
                       name="pitched_roof_ext_1_sc_evidence_150mm"
                       value={Array.isArray(formData.pitched_roof_ext_1_sc_evidence_150mm) ? formData.pitched_roof_ext_1_sc_evidence_150mm.join(", ") : (formData.pitched_roof_ext_1_sc_evidence_150mm || "")}
                       onChange={(e) => handleArrayInput("pitched_roof_ext_1_sc_evidence_150mm", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1380,12 +1319,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Pitched roof EXT 2 SC evidence 150mm</label>
+                    <label className="block text-xs font-medium text-gray-600">Pitched roof EXT 2 SC evidence 150mm</label>
                     <select
                       name="pitched_roof_ext_2_sc_evidence_150mm"
                       value={Array.isArray(formData.pitched_roof_ext_2_sc_evidence_150mm) ? formData.pitched_roof_ext_2_sc_evidence_150mm.join(", ") : (formData.pitched_roof_ext_2_sc_evidence_150mm || "")}
                       onChange={(e) => handleArrayInput("pitched_roof_ext_2_sc_evidence_150mm", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1395,14 +1334,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Secondary Heating Source Evidence</label>
+                    <label className="block text-xs font-medium text-gray-600">Secondary Heating Source Evidence</label>
                     <select
                       name="secondary_heating_source_evidence"
                       value={Array.isArray(formData.secondary_heating_source_evidence) ? formData.secondary_heating_source_evidence.join(", ") : (formData.secondary_heating_source_evidence || "")}
                       onChange={(e) => handleArrayInput("secondary_heating_source_evidence", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1410,12 +1349,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Cavity FIlled Evidence 300mm Main</label>
+                    <label className="block text-xs font-medium text-gray-600">Cavity FIlled Evidence 300mm Main</label>
                     <select
                       name="cavity_filled_evidence"
                       value={Array.isArray(formData.cavity_filled_evidence_300mm_main) ? formData.cavity_filled_evidence_300mm_main.join(", ") : (formData.cavity_filled_evidence_300mm_main || "")}
                       onChange={(e) => handleArrayInput("cavity_filled_evidence_300mm_main", e.target.value)}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
                       <option value="Checked and verified">Checked and verified</option>
@@ -1425,7 +1364,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Notes / Additional Information</label>
+                  <label className="block text-xs font-medium text-gray-600">Notes / Additional Information</label>
                   <textarea
                     name="notes"
                     value={formData.notes}
@@ -1440,10 +1379,10 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
             {/* Step 4: Sheet / Trustmark / Tecnica */}
             {currentStep === 4 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Sheet / Trustmark & Tecnica</h3>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Sheet / Trustmark & Tecnica</h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <label className="flex items-center space-x-2">
                     <input type="checkbox" name="epr_check_matching" checked={formData.epr_check_matching} onChange={handleInputChange} className="w-4 h-4" />
                     <span className="text-sm">EPR Check Matching</span>
@@ -1463,8 +1402,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   </label>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Master Sheet Giant Source</label>
-                    <input type="url" name="master_sheet_giant_source" value={formData.master_sheet_giant_source} onChange={handleInputChange} placeholder="https://..." className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Master Sheet Giant Source</label>
+                    <input type="url" name="master_sheet_giant_source" value={formData.master_sheet_giant_source} onChange={handleInputChange} placeholder="https://..." className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
 
                   <label className="flex items-center space-x-2">
@@ -1487,8 +1426,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Queries</label>
-                  <select name="queries" value={formData.queries ?? ""} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <label className="block text-xs font-medium text-gray-600">Queries</label>
+                  <select name="queries" value={formData.queries ?? ""} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded">
                     <option value="">Select...</option>
                     <option value="Required">Required</option>
                     <option value="Not Available">Not Available</option>
@@ -1501,39 +1440,39 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     <span className="text-sm">Queries Resolved</span>
                   </label>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Trustmark</label>
-                    <input type="text" name="trustmark" value={formData.trustmark} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Trustmark</label>
+                    <input type="text" name="trustmark" value={formData.trustmark} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Lodgement</label>
-                    <input type="text" name="lodgement" value={formData.lodgement} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Lodgement</label>
+                    <input type="text" name="lodgement" value={formData.lodgement} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Trustmark Project Certificate</label>
-                    <input type="text" name="trustmark_project_certificate" value={formData.trustmark_project_certificate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Trustmark Project Certificate</label>
+                    <input type="text" name="trustmark_project_certificate" value={formData.trustmark_project_certificate} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Project Stage1 Trustmark Project Certificate</label>
-                    <input type="text" name="project_stage1_trustmark_project_certificate" value={formData.project_stage1_trustmark_project_certificate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Project Stage1 Trustmark Project Certificate</label>
+                    <input type="text" name="project_stage1_trustmark_project_certificate" value={formData.project_stage1_trustmark_project_certificate} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Tecnica</label>
-                  <input type="text" name="tecnica" value={formData.tecnica} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  <label className="block text-xs font-medium text-gray-600">Tecnica</label>
+                  <input type="text" name="tecnica" value={formData.tecnica} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Scaffolding Removed Date</label>
-                    <input type="date" name="scaffolding_removed_date" value={formData.scaffolding_removed_date} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Scaffolding Removed Date</label>
+                    <input type="date" name="scaffolding_removed_date" value={formData.scaffolding_removed_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Rubbish Collected Date</label>
-                    <input type="date" name="rubbish_collected_date" value={formData.rubbish_collected_date} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <label className="block text-xs font-medium text-gray-600">Rubbish Collected Date</label>
+                    <input type="date" name="rubbish_collected_date" value={formData.rubbish_collected_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div>
                 </div>
               </div>
@@ -1541,8 +1480,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
             {/* Step 5: EPC & Numeric Metrics */}
             {currentStep === 5 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">EPC & Numeric Metrics</h3>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">EPC & Numeric Metrics</h3>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Services Required</label>
@@ -1707,8 +1646,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
             {/* Step 6: Floor Details & Totals */}
             {currentStep === 6 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Floor Details & Totals</h3>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Floor Details & Totals</h3>
 
                 <div className="space-y-2">
                   {(Array.isArray(formData.floor_details) ? formData.floor_details : []).map((row, idx) => (
@@ -1881,8 +1820,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
             {/* Step 7: Documents */}
             {currentStep === 7 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Documents</h3>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Documents</h3>
 
                 <div className="space-y-4">
                   {(Array.isArray(formData.documents) ? formData.documents : []).map((group, gi) => {
@@ -1930,42 +1869,45 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     const bgClass = bgColors[gi % bgColors.length];
 
                     return (
-                      <div key={gi} className={`p-4 border-2 rounded-lg shadow-sm ${colorClass} transition-shadow hover:shadow-md`}>
-                        <div className="grid grid-cols-3 gap-4 mb-2 pb-2 border-b border-gray-300/50">
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-800">Main Folder</label>
-                            <input type="text" value={group.main_folder || ""} onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)} className="mt-1 block w-full px-3 py-2 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-800">File Type</label>
-                            <input type="text" value={group.file_type || ""} onChange={(e) => updateDocumentGroup(gi, 'file_type', e.target.value)} className="mt-1 block w-full px-3 py-2 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50" />
-                          </div>
-                          <div className="flex items-end justify-end">
-                            <button type="button" onClick={() => removeDocumentGroup(gi)} className="px-3 py-2 text-red-600 font-medium hover:bg-red-100 rounded transition-colors text-sm flex items-center gap-1">
-                              <X className="w-4 h-4" />
+                      <div key={gi} className={`p-2 border rounded-md shadow-sm ${colorClass} transition-shadow hover:shadow-md text-xs`}>
+                        <div className="mb-2 pb-1 border-b border-gray-300/50">
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="text-xs font-semibold text-gray-800">Main Folder</label>
+                            <button
+                              type="button"
+                              onClick={() => removeDocumentGroup(gi)}
+                              className="px-2 py-0.5 text-red-600 font-medium hover:bg-red-50 rounded transition-colors text-[10px] flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" />
                               Remove Group
                             </button>
                           </div>
+                          <input
+                            type="text"
+                            value={group.main_folder || ""}
+                            onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)}
+                            className="block w-full px-2 py-1 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                          />
                         </div>
 
-                        <div className="mt-4 overflow-x-auto bg-white rounded-md shadow-sm border border-gray-200">
-                          <table className="w-full text-sm text-left border-collapse">
-                            <thead className={`${bgClass} uppercase text-gray-800 font-semibold border-b`}>
+                        <div className="mt-2 overflow-x-auto bg-white rounded-sm shadow-sm border border-gray-100">
+                          <table className="w-full text-[11px] text-left border-collapse">
+                            <thead className={`${bgClass} uppercase text-gray-700 font-semibold border-b`}>
                               <tr>
-                                <th className="px-3 py-3 border-r font-medium">Name</th>
-                                <th className="px-3 py-3 border-r font-medium w-48">Status</th>
-                                <th className="px-3 py-3 border-r font-medium">Issue</th>
-                                <th className="px-3 py-3 font-medium w-16 text-center">Action</th>
+                                <th className="px-2 py-1.5 border-r font-medium">Name</th>
+                                <th className="px-2 py-1.5 border-r font-medium w-32">Status</th>
+                                <th className="px-2 py-1.5 border-r font-medium">Issue</th>
+                                <th className="px-2 py-1.5 font-medium w-10 text-center">Action</th>
                               </tr>
                             </thead>
                             <tbody>
                               {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
                                 <tr key={di} className="border-b hover:bg-gray-50/80 transition-colors last:border-b-0">
-                                  <td className="px-3 py-2 border-r bg-white align-top">
-                                    <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="w-full px-2 py-1.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-300 focus:ring-1 focus:ring-blue-300" />
+                                  <td className="px-2 py-1 border-r bg-white align-top">
+                                    <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200" />
                                   </td>
-                                  <td className="px-3 py-2 border-r bg-white align-top">
-                                    <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="w-full px-2 py-1.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-300 focus:ring-1 focus:ring-blue-300">
+                                  <td className="px-2 py-1 border-r bg-white align-top">
+                                    <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200">
                                       <option value="">Select...</option>
                                       <option value="Done">Done</option>
                                       <option value="Pending">Pending</option>
@@ -1979,26 +1921,26 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                                       <option value="BLB">BLB</option>
                                     </select>
                                   </td>
-                                  <td className="px-3 py-2 border-r bg-white align-top">
+                                  <td className="px-2 py-1 border-r bg-white align-top">
                                     <textarea
                                       value={doc.issue || ""}
                                       onChange={(e) => updateDocumentRow(gi, di, 'issue', e.target.value)}
-                                      className="w-full px-2 py-1.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-300 focus:ring-1 focus:ring-blue-300 resize-y min-h-[38px]"
+                                      className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200 resize-y min-h-[24px]"
                                       rows="1"
                                       placeholder="Note any issues..."
                                     />
                                   </td>
-                                  <td className="px-3 py-2 text-center bg-white align-top pt-3">
-                                    <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-red-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50" title="Remove Document">
-                                      <X className="w-5 h-5 mx-auto" />
+                                  <td className="px-2 py-1 text-center bg-white align-top pt-1.5">
+                                    <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-red-400 hover:text-red-600 transition-colors">
+                                      <X className="w-4 h-4 mx-auto" />
                                     </button>
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
-                          <div className="p-3 bg-gray-50 border-t flex justify-between items-center">
-                            <button type="button" onClick={() => addDocumentRow(gi)} className="px-4 py-1.5 bg-gray-200 text-gray-700 font-medium rounded text-sm hover:bg-gray-300 transition-colors shadow-sm">
+                          <div className="p-1.5 bg-gray-50 border-t flex justify-between items-center">
+                            <button type="button" onClick={() => addDocumentRow(gi)} className="px-3 py-1 bg-gray-200 text-gray-600 font-medium rounded text-[10px] hover:bg-gray-300 transition-colors shadow-sm">
                               + Add Document
                             </button>
                           </div>
@@ -2015,26 +1957,26 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             )}
 
             {/* Footer with Navigation */}
-            <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-200">
+            <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-200">
               <button
                 type="button"
                 onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
                 disabled={currentStep === 1}
-                className="inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50"
+                className="inline-flex items-center space-x-1 px-3 py-1 border border-gray-300 rounded text-gray-700 disabled:opacity-50 text-xs"
               >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Previous</span>
+                <ChevronLeft className="w-3 h-3" />
+                <span>Prev</span>
               </button>
 
-              <div className="flex space-x-2">
+              <div className="flex space-x-1">
                 {[1, 2, 3, 4, 5, 6, 7].map((step) => (
                   <button
                     key={step}
                     type="button"
                     onClick={() => setCurrentStep(step)}
-                    className={`w-8 h-8 rounded-full font-semibold text-sm ${currentStep === step
+                    className={`w-6 h-6 rounded-full font-semibold text-[10px] ${currentStep === step
                       ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                       }`}
                   >
                     {step}
@@ -2046,25 +1988,25 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 <button
                   type="submit"
                   disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+                  className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 text-xs"
                 >
-                  <span>{isUpdatingLead || isAddingEvidence ? "Submitting..." : "Submit"}</span>
+                  <span>{isUpdatingLead || isAddingEvidence ? "..." : "Submit"}</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => setCurrentStep((prev) => Math.min(7, prev + 1))}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                  className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
                 >
                   <span>Next</span>
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3 h-3" />
                 </button>
               )}
             </div>
           </>
         )}
       </form>
-    </div>
+    </div >
   );
 
   return inline ? (
