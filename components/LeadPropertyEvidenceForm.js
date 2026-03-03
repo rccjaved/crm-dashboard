@@ -954,8 +954,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                               });
                             }}
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border transition-all ${selected
-                                ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
-                                : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300"
+                              ? "bg-emerald-600 text-white border-emerald-700 shadow-sm"
+                              : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:border-emerald-300"
                               }`}
                           >
                             <span aria-hidden>{icon}</span>
@@ -968,6 +968,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 </div>
               </div>
             )}
+
 
             {/* Step 2: Property & Link Details */}
             {currentStep === 2 && (
