@@ -35,8 +35,16 @@ export default function UsersPage() {
     "complaints",
     "trustmark",
     "c3",
+    "leads",
     "users",
     "dashboard",
+    "lead_form_screen_1",
+    "lead_form_screen_2",
+    "lead_form_screen_3",
+    "lead_form_screen_4",
+    "lead_form_screen_5",
+    "lead_form_screen_6",
+    "lead_form_screen_7",
   ];
 
   // Format date
@@ -123,7 +131,7 @@ export default function UsersPage() {
     setSelectedUser(user);
     // Parse existing modules - prefer modules array over moduleName string
     let existingModules = [];
-    
+
     if (Array.isArray(user.modules) && user.modules.length > 0) {
       // If modules is array of objects with module_key
       if (user.modules[0]?.module_key) {
@@ -138,7 +146,7 @@ export default function UsersPage() {
         .split(",")
         .map((m) => m.trim().toLowerCase());
     }
-    
+
     setSelectedModules(existingModules);
     dispatch(startUpdatingUser(user.id));
     setIsUpdateModalOpen(true);
@@ -310,7 +318,7 @@ export default function UsersPage() {
                           className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
                         >
                           <Edit className="w-4 h-4" />
-                        
+
                         </button>
                         {/* <button
                           onClick={() => handleDelete(user?.id)}

@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useSelector } from "react-redux";
 import { useAddPropertyEvidenceMutation, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
 import { toast } from "react-toastify";
 
@@ -145,10 +146,46 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     "Ext 3 Ground Floor",
     "Alley way Extension",
   ];
+  const { userInfo, modules } = useSelector((state) => state.auth);
+
+  const availableSteps = useMemo(() => {
+    if (!userInfo) return [1, 2, 3, 4, 5, 6, 7];
+    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, 3, 4, 5, 6, 7];
+
+    const enabledKeys = (modules || []).filter(m => m.is_enabled).map(m => m.module_key);
+    const steps = [];
+    for (let i = 1; i <= 7; i++) {
+      if (enabledKeys.includes(`lead_form_screen_${i}`)) {
+        steps.push(i);
+      }
+    }
+    return steps;
+  }, [userInfo, modules]);
+
   const [addPropertyEvidence, { isLoading: isAddingEvidence }] = useAddPropertyEvidenceMutation();
   const [updateLead, { isLoading: isUpdatingLead }] = useUpdateLeadMutation();
   const { data: leadData, isLoading: isLoadingLead } = useGetLeadByIdQuery(leadId, { skip: !leadId || !isOpen });
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(availableSteps.length > 0 ? availableSteps[0] : 1);
+
+  useEffect(() => {
+    if (availableSteps.length > 0 && !availableSteps.includes(currentStep)) {
+      setCurrentStep(availableSteps[0]);
+    }
+  }, [availableSteps, currentStep]);
+
+  const handlePrev = () => {
+    const currentIndex = availableSteps.indexOf(currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(availableSteps[currentIndex - 1]);
+    }
+  };
+
+  const handleNext = () => {
+    const currentIndex = availableSteps.indexOf(currentStep);
+    if (currentIndex < availableSteps.length - 1) {
+      setCurrentStep(availableSteps[currentIndex + 1]);
+    }
+  };
   const [formData, setFormData] = useState({
     // Lead fields
     name: "",
@@ -549,14 +586,15 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent submission unless user is on final step (step 7)
-    if (currentStep !== 7) {
-      setCurrentStep(7);
+    const isFinalStep = availableSteps.indexOf(currentStep) === availableSteps.length - 1;
+    // Prevent submission unless user is on final available step
+    if (!isFinalStep) {
+      handleNext();
       return;
     }
 
     // Basic required validation for first field on step 3
-    if (!formData.ubil_hthe_name) {
+    if (availableSteps.includes(3) && !formData.ubil_hthe_name) {
       toast.error("Please fill the required evidence: UBIL HTHE Name");
       setCurrentStep(3);
       return;
@@ -631,7 +669,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         return; // stop further success flow
       }
       onClose();
-      setCurrentStep(1);
+      setCurrentStep(availableSteps.length > 0 ? availableSteps[0] : 1);
       setFormData({
         name: "",
         email: "",
@@ -775,7 +813,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         onSubmit={handleSubmit}
         onKeyDown={(e) => {
           // Prevent Enter from submitting the whole form on steps before final
-          if (e.key === "Enter" && currentStep !== 7) {
+          const isFinalStep = availableSteps.indexOf(currentStep) === availableSteps.length - 1;
+          if (e.key === "Enter" && !isFinalStep) {
             e.preventDefault();
           }
         }}
@@ -784,6 +823,10 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         {isLoadingLead ? (
           <div className="flex items-center justify-center py-12">
             <p className="text-gray-500">Loading lead information...</p>
+          </div>
+        ) : availableSteps.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <p className="text-red-500 font-semibold">You don't have permission to view any screens in this form.</p>
           </div>
         ) : (
           <>
@@ -1961,8 +2004,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-                disabled={currentStep === 1}
+                onClick={handlePrev}
+                disabled={availableSteps.indexOf(currentStep) === 0 || availableSteps.length === 0}
                 className="inline-flex items-center space-x-1 px-3 py-1 border border-gray-300 rounded text-gray-700 disabled:opacity-50 text-xs"
               >
                 <ChevronLeft className="w-3 h-3" />
@@ -1970,7 +2013,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               </button>
 
               <div className="flex space-x-1">
-                {[1, 2, 3, 4, 5, 6, 7].map((step) => (
+                {availableSteps.map((step) => (
                   <button
                     key={step}
                     type="button"
@@ -1985,7 +2028,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 ))}
               </div>
 
-              {currentStep === 7 ? (
+              {availableSteps.indexOf(currentStep) === availableSteps.length - 1 ? (
                 <button
                   type="submit"
                   disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
@@ -1996,7 +2039,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               ) : (
                 <button
                   type="button"
-                  onClick={() => setCurrentStep((prev) => Math.min(7, prev + 1))}
+                  onClick={handleNext}
                   className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
                 >
                   <span>Next</span>
