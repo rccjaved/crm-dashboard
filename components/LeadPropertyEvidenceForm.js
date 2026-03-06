@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useSelector } from "react-redux";
-import { useAddPropertyEvidenceMutation, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
+import { useUpdatePropertyEvidenceMutation, useGetPropertyEvidenceQuery, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
 import { toast } from "react-toastify";
 
 const HARDCODED_DOCUMENTS = [
@@ -149,22 +149,27 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const { userInfo, modules } = useSelector((state) => state.auth);
 
   const availableSteps = useMemo(() => {
-    if (!userInfo) return [1, 2, 3, 4, 5, 6, 7];
-    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, 3, 4, 5, 6, 7];
+    if (!userInfo) return [1, 2, '3A', '3B', 4, 5, 6, 7];
+    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, '3A', '3B', 4, 5, 6, 7];
 
     const enabledKeys = (modules || []).filter(m => m.is_enabled).map(m => m.module_key);
     const steps = [];
     for (let i = 1; i <= 7; i++) {
       if (enabledKeys.includes(`lead_form_screen_${i}`)) {
-        steps.push(i);
+        if (i === 3) {
+          steps.push('3A', '3B');
+        } else {
+          steps.push(i);
+        }
       }
     }
     return steps;
   }, [userInfo, modules]);
 
-  const [addPropertyEvidence, { isLoading: isAddingEvidence }] = useAddPropertyEvidenceMutation();
+  const [updatePropertyEvidence, { isLoading: isUpdatingEvidence }] = useUpdatePropertyEvidenceMutation();
   const [updateLead, { isLoading: isUpdatingLead }] = useUpdateLeadMutation();
   const { data: leadData, isLoading: isLoadingLead } = useGetLeadByIdQuery(leadId, { skip: !leadId || !isOpen });
+  const { data: evidenceData, isLoading: isLoadingEvidence } = useGetPropertyEvidenceQuery(leadId, { skip: !leadId || !isOpen });
   const [currentStep, setCurrentStep] = useState(availableSteps.length > 0 ? availableSteps[0] : 1);
 
   useEffect(() => {
@@ -201,6 +206,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     documents: JSON.parse(JSON.stringify(HARDCODED_DOCUMENTS)),
     make_model_serial: "",
     data_plate: "",
+    data_matched_status: [],
+    gas_safe: null,
     epc_link: "",
     zoopla_link: "",
     rightmove_link: "",
@@ -303,32 +310,49 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     benefits: "",
     total_wall_pici: null,
     popt: null,
+    add_more_evidence: [],
   });
 
-  // Update form when lead data is fetched
+  // Update form when lead or evidence data is fetched
   useEffect(() => {
-    if (isOpen && leadData?.data) {
-      const lead = leadData.data;
-      setFormData((prev) => ({
-        ...prev,
-        name: lead.name || "",
-        dob: lead.dob ? lead.dob.split("T")[0] : "",
-        email: lead.email || "",
-        mobile: lead.mobile || "",
-        alternate_phone: lead.alternate_phone || "",
-        address: lead.address || "",
-        lead_date: lead.created_at ? lead.created_at.split("T")[0] : "",
-        lead_id: leadId,
-        lead_provider: lead.lead_provider || "",
-        property_ownership: lead.property_ownership || "Owner Occupied",
-        benefits: Array.isArray(lead.benefits) ? lead.benefits[0] || "" : lead.benefits || "",
-        // populate services from lead.services
-        services: lead.services || [],
-        // populate documents from lead.documents (keep hardcoded default if lead has none)
-        documents: (Array.isArray(lead.documents) && lead.documents.length > 0) ? lead.documents : prev.documents,
-      }));
+    if (isOpen) {
+      if (leadData?.data) {
+        const lead = leadData.data;
+        setFormData((prev) => ({
+          ...prev,
+          name: lead.name || "",
+          dob: lead.dob ? lead.dob.split("T")[0] : "",
+          email: lead.email || "",
+          mobile: lead.mobile || "",
+          alternate_phone: lead.alternate_phone || "",
+          address: lead.address || "",
+          lead_date: lead.created_at ? lead.created_at.split("T")[0] : "",
+          lead_id: leadId,
+          lead_provider: lead.lead_provider || "",
+          property_ownership: lead.property_ownership || "Owner Occupied",
+          benefits: Array.isArray(lead.benefits) ? lead.benefits[0] || "" : lead.benefits || "",
+          services: lead.services || [],
+        }));
+      }
+
+      if (evidenceData?.data) {
+        const ev = evidenceData.data;
+        setFormData((prev) => ({
+          ...prev,
+          ...ev,
+          // Handle complex fields that might need default values if null in DB
+          documents: ev.documents || prev.documents,
+          floor_details: ev.floor_details || prev.floor_details,
+          loft_details: ev.loft_details || prev.loft_details,
+          wall_ext_details: ev.wall_ext_details || prev.wall_ext_details,
+          number_metrics: ev.number_metrics || prev.number_metrics,
+          epc_metrics: ev.epc_metrics || prev.epc_metrics,
+          data_matched_status: ev.data_matched_status || [],
+          add_more_evidence: ev.add_more_evidence || [],
+        }));
+      }
     }
-  }, [leadData, leadId, isOpen]);
+  }, [leadData, evidenceData, leadId, isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -572,6 +596,67 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     });
   };
 
+  const addMoreEvidenceGroup = () => {
+    setFormData((prev) => ({
+      ...prev,
+      add_more_evidence: [...(Array.isArray(prev.add_more_evidence) ? prev.add_more_evidence : []), { main_folder: "", documents: [] }],
+    }));
+  };
+
+  const removeMoreEvidenceGroup = (index) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence) ? [...prev.add_more_evidence] : [];
+      arr.splice(index, 1);
+      return { ...prev, add_more_evidence: arr };
+    });
+  };
+
+  const updateMoreEvidenceGroup = (index, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence) ? [...prev.add_more_evidence] : [];
+      const g = { ...(arr[index] || {}) };
+      g[key] = value;
+      arr[index] = g;
+      return { ...prev, add_more_evidence: arr };
+    });
+  };
+
+  const addMoreEvidenceRow = (groupIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence) ? [...prev.add_more_evidence] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      g.documents = [...(Array.isArray(g.documents) ? g.documents : []), { name: "", status: "", issue: "" }];
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence: arr };
+    });
+  };
+
+  const removeMoreEvidenceRow = (groupIndex, docIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence) ? [...prev.add_more_evidence] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      docs.splice(docIndex, 1);
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence: arr };
+    });
+  };
+
+  const updateMoreEvidenceRow = (groupIndex, docIndex, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence) ? [...prev.add_more_evidence] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      const d = { ...(docs[docIndex] || {}) };
+      d[key] = value;
+      docs[docIndex] = d;
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence: arr };
+    });
+  };
+
   const saveProposedMeasures = async () => {
     try {
       // ensure lead_id available
@@ -583,214 +668,81 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       toast.error(err?.data?.message || "Failed to save services");
     }
   };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const isFinalStep = availableSteps.indexOf(currentStep) === availableSteps.length - 1;
-    // Prevent submission unless user is on final available step
-    if (!isFinalStep) {
-      handleNext();
-      return;
+  // Map each screen to the fields it owns
+  const getScreenFields = (step) => {
+    switch (step) {
+      case 1:
+        return { isLeadScreen: true, leadFields: ['name', 'dob', 'email', 'mobile', 'alternate_phone', 'address', 'lead_provider', 'property_ownership', 'benefits', 'services'], evidenceFields: ['lead_provider', 'property_ownership'] };
+      case 2:
+        return { isLeadScreen: false, evidenceFields: ['data_plate', 'gas_safe', 'data_matched_status', 'epc_link', 'zoopla_link', 'rightmove_link', 'mouseprice_link', 'propertychecker_link', 'survey_folder_link', 'google_maps_checked', 'google_earth_checked', 'requires_c1', 'booking_date'] };
+      case '3A':
+        return { isLeadScreen: false, evidenceFields: ['make_model_serial', 'ubil_hthe_name', 'ubil_3_months_old', 'ubil_video_available', 'pres_hhev_name', 'pres_3_months_old', 'pres_video_available', 'gcgp', 'shower_type', 'gas_electric_meters', 'heater_type', 'front_elevation_photos', 'rear_elevation_photos', 'wall_thickness_main', 'wall_thickness_ext_1', 'wall_thickness_ext_2', 'pitched_roof_main', 'pmhs_with_dataplate', 'pitched_roof_ext_1_sc_evidence_150mm', 'pitched_roof_ext_2_sc_evidence_150mm', 'secondary_heating_source_evidence', 'cavity_filled_evidence', 'notes'] };
+      case '3B':
+        return { isLeadScreen: false, evidenceFields: ['add_more_evidence'] };
+      case 4:
+        return { isLeadScreen: false, evidenceFields: ['epr_check_matching', 'installation_changes', 'pas10_changes_before_submit', 'updating_master_sheets', 'master_sheet_giant_source', 'update_tecnica_order_sheet', 'c3_issues_found_internal', 'c2_packs_all_key_parts_and_stages', 'c3_packs_all_key_parts', 'queries', 'queries_status', 'trustmark', 'lodgement', 'trustmark_project_certificate', 'project_stage1_trustmark_project_certificate', 'tecnica', 'scaffolding_removed_date', 'rubbish_collected_date'] };
+      case 5:
+        return { isLeadScreen: false, evidenceFields: ['start_sap', 'end_sap', 'number_metrics', 'epc_metrics', 'high_value_notes'] };
+      case 6:
+        return { isLeadScreen: false, evidenceFields: ['floor_details', 'total_epc_area', 'total_floor_area_excluding_rir', 'heat_demand_total_wall_area', 'total_ground_floor_area', 'highest_floor_area', 'total_hlp', 'loft_details', 'total_loft', 'ba', 'popt', 'wall_ext_details', 'solid_wall_area', 'glazed_area', 'wall_excluding_windows_pici', 'total_wall_pici'] };
+      case 7:
+        return { isLeadScreen: false, evidenceFields: ['documents'] };
+      default:
+        return { isLeadScreen: false, evidenceFields: [] };
     }
+  };
 
-    // Basic required validation for first field on step 3
-    if (availableSteps.includes(3) && !formData.ubil_hthe_name) {
-      toast.error("Please fill the required evidence: UBIL HTHE Name");
-      setCurrentStep(3);
-      return;
-    }
-
-    // Validate that lead_id is set
+  const handleScreenSubmit = async () => {
     if (!formData.lead_id) {
       toast.error("Lead ID is missing");
       return;
     }
 
-    // Validate that at least lead_provider is filled
-    if (!formData.lead_provider) {
-      toast.error("Lead Provider is required");
-      return;
-    }
+    const screenConfig = getScreenFields(currentStep);
 
     try {
-      // First, update the lead with the new information
-      const leadUpdateData = {
-        id: formData.lead_id,
-        name: formData.name,
-        dob: formData.dob,
-        email: formData.email,
-        mobile: formData.mobile,
-        alternate_phone: formData.alternate_phone,
-        address: formData.address,
-        lead_provider: formData.lead_provider,
-        property_ownership: formData.property_ownership,
-        benefits: Array.isArray(formData.benefits) ? formData.benefits : [formData.benefits],
-      };
-
-      console.log("Updating lead:", leadUpdateData);
-      await updateLead(leadUpdateData).unwrap();
-      toast.success("Lead information updated");
-
-      // Then, prepare and submit property evidence data
-      const evidenceData = { ...formData };
-
-      // Remove lead fields from evidence data
-      delete evidenceData.name;
-      delete evidenceData.email;
-      delete evidenceData.mobile;
-      delete evidenceData.address;
-      delete evidenceData.lead_date;
-      // We do not send services to evidence since it's stored on leads.services
-      delete evidenceData.services;
-      // Ensure floor details and totals are included (they are in formData already)
-      // Convert empty floor_details to null so backend handles it consistently
-      if (Array.isArray(evidenceData.floor_details) && evidenceData.floor_details.length === 0) {
-        evidenceData.floor_details = null;
+      // If this screen has lead fields, update the lead first
+      if (screenConfig.isLeadScreen) {
+        const leadUpdateData = { id: formData.lead_id };
+        (screenConfig.leadFields || []).forEach((key) => {
+          if (key === 'benefits') {
+            leadUpdateData[key] = Array.isArray(formData[key]) ? formData[key] : [formData[key]];
+          } else {
+            leadUpdateData[key] = formData[key];
+          }
+        });
+        console.log("Updating lead:", leadUpdateData);
+        await updateLead(leadUpdateData).unwrap();
+        toast.success("Lead information updated");
       }
 
-      // Remove empty arrays
-      Object.keys(evidenceData).forEach((key) => {
-        if (Array.isArray(evidenceData[key]) && evidenceData[key].length === 0) {
-          evidenceData[key] = null;
-        }
-      });
+      // Build evidence payload with only this screen's fields
+      if (screenConfig.evidenceFields && screenConfig.evidenceFields.length > 0) {
+        const evidenceData = { lead_id: parseInt(formData.lead_id) };
+        screenConfig.evidenceFields.forEach((key) => {
+          let val = formData[key];
+          if (Array.isArray(val) && val.length === 0) val = null;
+          evidenceData[key] = val;
+        });
 
-      // Ensure lead_id is a number
-      evidenceData.lead_id = parseInt(evidenceData.lead_id);
-
-      // log payload so we can inspect in browser console / network
-      console.log("Submitting property evidence:", evidenceData);
-      try {
-        await addPropertyEvidence(evidenceData).unwrap();
-        toast.success("Property evidence added successfully!");
-      } catch (err) {
-        console.error("addPropertyEvidence error:", err);
-        toast.error(err?.data?.message || "Failed to add property evidence");
-        return; // stop further success flow
+        console.log(`Updating property evidence (screen ${currentStep}):`, evidenceData);
+        await updatePropertyEvidence(evidenceData).unwrap();
+        toast.success(`Screen ${currentStep} saved successfully!`);
       }
-      onClose();
-      setCurrentStep(availableSteps.length > 0 ? availableSteps[0] : 1);
-      setFormData({
-        name: "",
-        email: "",
-        mobile: "",
-        address: "",
-        lead_date: "",
-        lead_id: leadId,
-        lead_provider: "",
-        property_ownership: "",
-        services: [],
-        documents: JSON.parse(JSON.stringify(HARDCODED_DOCUMENTS)),
-        make_model_serial: "",
-        data_plate: "",
-        epc_link: "",
-        zoopla_link: "",
-        rightmove_link: "",
-        mouseprice_link: "",
-        propertychecker_link: "",
-        survey_folder_link: "",
-        google_maps_checked: false,
-        google_earth_checked: false,
-        requires_c1: null,
-        booking_date: "",
-        ubil_hthe_name: "",
-        ubil_3_months_old: "",
-        ubil_video_available: "",
-        pres_hhev_name: "",
-        pres_3_months_old: "",
-        pres_video_available: "",
-        gcgp: "",
-        front_elevation_photos: "",
-        rear_elevation_photos: "",
-        wall_thickness_main: "",
-        wall_thickness_ext_1: "",
-        wall_thickness_ext_2: "",
-        pitched_roof_ext_1_sc_evidence_150mm: "",
-        pitched_roof_main: "",
-        pmhs_with_dataplate: "",
-        secondary_heating_source_evidence: "",
-        cavity_filled_evidence: "",
-        gas_electric_meters: "",
-        heater_type: "",
-        shower_type: "",
-        notes: "",
-        // reset new fields
-        epr_check_matching: false,
-        installation_changes: false,
-        pas10_changes_before_submit: false,
-
-        updating_master_sheets: false,
-        master_sheet_giant_source: "",
-
-        update_tecnica_order_sheet: false,
-        c3_issues_found_internal: false,
-
-        c2_packs_all_key_parts_and_stages: false,
-        c3_packs_all_key_parts: false,
-
-        queries: "",
-        queries_status: false,
-
-        trustmark: "",
-        lodgement: "",
-        trustmark_project_certificate: "",
-        project_stage1_trustmark_project_certificate: "",
-
-        tecnica: "",
-        scaffolding_removed_date: "",
-        rubbish_collected_date: "",
-        // EPC / numeric metrics new fields
-        start_sap: null,
-        end_sap: null,
-        number_metrics: {
-          number1: null,
-          number2: null,
-          number3: null,
-        },
-        epc_metrics: {
-          epc_rating: { previous: null, current: null, difference: null },
-          epc_area: { previous: null, current: null, difference: null },
-          loft_insulation: { previous: null, current: null, difference: null },
-          secondary_heating: { previous: null, current: null, difference: null },
-          cavity_wall_insulation: { previous: null, current: null, difference: null },
-          loft_ext_1: { previous: null, current: null, difference: null },
-          property_age: { previous: "", current: "", difference: null },
-        },
-        high_value_notes: "",
-        // Floor details and computed totals (Step 6)
-        floor_details: [
-          ...FIXED_FLOOR_NAMES.map((n) => ({ name: n, area: null, height: null, hlp: null, pw: null, notes: "" })),
-        ],
-        total_epc_area: null,
-        total_floor_area_excluding_rir: null,
-        heat_demand_total_wall_area: null,
-        total_ground_floor_area: null,
-        highest_floor_area: null,
-        total_hlp: null,
-        // loft and wall new fields reset
-        loft_details: [
-          { name: "Main", area: null, type: "" },
-          { name: "Ext 1", area: null, type: "" },
-          { name: "Ext 2", area: null, type: "" },
-          { name: "Ext 3", area: null, type: "" },
-          { name: "Alleyway", area: null, type: "" },
-        ],
-        total_loft: null,
-        ba: null,
-        wall_ext_details: [
-          { name: "Ext 1", area: null, construction_type: "" },
-          { name: "Ext 2", area: null, construction_type: "" },
-        ],
-        solid_wall_area: null,
-        glazed_area: null,
-        wall_excluding_windows_pici: null,
-        total_wall_pici: null,
-        popt: null,
-        services: [],
-      });
     } catch (error) {
-      toast.error(error?.data?.message || "Failed to submit");
+      console.error("Save error:", error);
+      toast.error(error?.data?.message || "Failed to save");
     }
+  };
+
+  const handleReject = () => {
+    onClose();
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // form onSubmit just calls per-screen submit
+    await handleScreenSubmit();
   };
 
   if (!inline && !isOpen) return null;
@@ -801,7 +753,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       <div className="flex items-center justify-between p-3 border-b border-gray-200 top-0 bg-white z-10">
         <div>
           <h2 className="text-lg font-bold">Lead Property Evidence</h2>
-          <p className="text-xs text-gray-600">Step {currentStep} of 7</p>
+          <p className="text-xs text-gray-600">Step {currentStep}</p>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
           <X className="w-5 h-5" />
@@ -1020,12 +972,48 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">Make/Model Serial Number</label>
-                    <input type="text" name="make_model_serial" value={formData.make_model_serial} onChange={handleInputChange} placeholder="e.g., Glow Worm FuelSaver MKII" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                  <div>
                     <label className="block text-xs font-medium text-gray-600">Data Plate</label>
                     <input type="text" name="data_plate" value={formData.data_plate} onChange={handleInputChange} placeholder="e.g., DP-456" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Gas Safe</label>
+                    <select
+                      name="gas_safe"
+                      value={formData.gas_safe === null ? "" : formData.gas_safe}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, gas_safe: e.target.value === "" ? null : e.target.value === "true" }))}
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    >
+                      <option value="">Select...</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </div>
+                  <div className="col-span-2 mt-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Data Matched Status</label>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {["Matched", "Unmatched Verified", "Unverified"].map((status) => (
+                        <label key={status} className="inline-flex items-center space-x-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={Array.isArray(formData.data_matched_status) && formData.data_matched_status.includes(status)}
+                            onChange={() => {
+                              setFormData((p) => {
+                                const current = Array.isArray(p.data_matched_status) ? p.data_matched_status : [];
+                                const exists = current.includes(status);
+                                return {
+                                  ...p,
+                                  data_matched_status: exists
+                                    ? current.filter(x => x !== status)
+                                    : [...current, status]
+                                };
+                              });
+                            }}
+                            className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-xs text-gray-700">{status}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
@@ -1088,9 +1076,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             )}
 
             {/* Step 3: Mandatory Evidence */}
-            {currentStep === 3 && (
+            {currentStep === '3A' && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Mandatory Evidence</h3>
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Mandatory Evidence (3A)</h3>
+
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-gray-600">Make/Model Serial Number</label>
+                  <input type="text" name="make_model_serial" value={formData.make_model_serial} onChange={handleInputChange} placeholder="e.g., Glow Worm FuelSaver MKII" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                </div>
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -1144,8 +1137,9 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                     >
                       <option value="">Select...</option>
-                      <option value="Required">Required</option>
-                      <option value="Not Required">Not Required</option>
+                      <option value="checked_and_confirmed">Checked and Confirmed</option>
+                      <option value="not_available">Not Available</option>
+                      <option value="not_required">Not Required</option>
                     </select>
                   </div>
                   <div>
@@ -1157,8 +1151,9 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                     >
                       <option value="">Select...</option>
-                      <option value="Required">Required</option>
-                      <option value="Not Required">Not Required</option>
+                      <option value="checked_and_confirmed">Checked and Confirmed</option>
+                      <option value="not_available">Not Available</option>
+                      <option value="not_required">Not Required</option>
                     </select>
                   </div>
                   <div>
@@ -1170,8 +1165,9 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                     >
                       <option value="">Select...</option>
-                      <option value="Required">Required</option>
-                      <option value="Not Required">Not Required</option>
+                      <option value="checked_and_confirmed">Checked and Confirmed</option>
+                      <option value="not_available">Not Available</option>
+                      <option value="not_required">Not Required</option>
                     </select>
                   </div>
                 </div>
@@ -1221,8 +1217,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                     >
                       <option value="">Select...</option>
-                      <option value="check and verified">Check and verified</option>
-                      <option value="gas_meter">Photos</option>
+                      <option value="check_and_verified">Check and verified</option>
+                      <option value="photos_missing">Photos Missing</option>
 
                     </select>
                   </div>
@@ -1417,6 +1413,128 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
                     rows="3"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Step 3B: Add More Evidence */}
+            {currentStep === '3B' && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Add More Evidence (3B)</h3>
+
+                <div className="space-y-4">
+                  {(Array.isArray(formData.add_more_evidence) ? formData.add_more_evidence : []).map((group, gi) => {
+                    const colors = [
+                      "border-blue-400 bg-blue-50",
+                      "border-emerald-400 bg-emerald-50",
+                      "border-purple-400 bg-purple-50",
+                      "border-orange-400 bg-orange-50",
+                      "border-rose-400 bg-rose-50",
+                      "border-indigo-400 bg-indigo-50",
+                      "border-amber-400 bg-amber-50",
+                      "border-cyan-400 bg-cyan-50",
+                      "border-fuchsia-400 bg-fuchsia-50",
+                      "border-teal-400 bg-teal-50",
+                    ];
+                    const bgColors = [
+                      "bg-blue-100",
+                      "bg-emerald-100",
+                      "bg-purple-100",
+                      "bg-orange-100",
+                      "bg-rose-100",
+                      "bg-indigo-100",
+                      "bg-amber-100",
+                      "bg-cyan-100",
+                      "bg-fuchsia-100",
+                      "bg-teal-100",
+                    ];
+                    const colorClass = colors[gi % colors.length];
+                    const bgClass = bgColors[gi % bgColors.length];
+
+                    return (
+                      <div key={gi} className={`p-2 border rounded-md shadow-sm ${colorClass} transition-shadow hover:shadow-md text-xs`}>
+                        <div className="mb-2 pb-1 border-b border-gray-300/50">
+                          <div className="flex justify-between items-center mb-1">
+                            <label className="text-xs font-semibold text-gray-800">Main Folder</label>
+                            <button
+                              type="button"
+                              onClick={() => removeMoreEvidenceGroup(gi)}
+                              className="px-2 py-0.5 text-red-600 font-medium hover:bg-red-50 rounded transition-colors text-[10px] flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" />
+                              Remove Group
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={group.main_folder || ""}
+                            onChange={(e) => updateMoreEvidenceGroup(gi, 'main_folder', e.target.value)}
+                            className="block w-full px-2 py-1 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                          />
+                        </div>
+
+                        <div className="mt-2 overflow-x-auto bg-white rounded-sm shadow-sm border border-gray-100">
+                          <table className="w-full text-[11px] text-left border-collapse">
+                            <thead className={`${bgClass} uppercase text-gray-700 font-semibold border-b`}>
+                              <tr>
+                                <th className="px-2 py-1.5 border-r font-medium">Name</th>
+                                <th className="px-2 py-1.5 border-r font-medium w-32">Status</th>
+                                <th className="px-2 py-1.5 border-r font-medium">Issue</th>
+                                <th className="px-2 py-1.5 font-medium w-10 text-center">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                                <tr key={di} className="border-b hover:bg-gray-50/80 transition-colors last:border-b-0">
+                                  <td className="px-2 py-1 border-r bg-white align-top">
+                                    <input type="text" value={doc.name || ""} onChange={(e) => updateMoreEvidenceRow(gi, di, 'name', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200" />
+                                  </td>
+                                  <td className="px-2 py-1 border-r bg-white align-top">
+                                    <select value={doc.status || ""} onChange={(e) => updateMoreEvidenceRow(gi, di, 'status', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200">
+                                      <option value="">Select...</option>
+                                      <option value="Done">Done</option>
+                                      <option value="Pending">Pending</option>
+                                      <option value="Not Required">Not Required</option>
+                                      <option value="Pending Check">Pending Check</option>
+                                      <option value="Incomplete">Incomplete</option>
+                                      <option value="Errors">Errors</option>
+                                      <option value="Scan Remaining">Scan Remaining</option>
+                                      <option value="Signatures">Signatures</option>
+                                      <option value="KSDL">KSDL</option>
+                                      <option value="BLB">BLB</option>
+                                    </select>
+                                  </td>
+                                  <td className="px-2 py-1 border-r bg-white align-top">
+                                    <textarea
+                                      value={doc.issue || ""}
+                                      onChange={(e) => updateMoreEvidenceRow(gi, di, 'issue', e.target.value)}
+                                      className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200 resize-y min-h-[24px]"
+                                      rows="1"
+                                      placeholder="Note any issues..."
+                                    />
+                                  </td>
+                                  <td className="px-2 py-1 text-center bg-white align-top pt-1.5">
+                                    <button type="button" onClick={() => removeMoreEvidenceRow(gi, di)} className="text-red-400 hover:text-red-600 transition-colors">
+                                      <X className="w-4 h-4 mx-auto" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                          <div className="p-1.5 bg-gray-50 border-t flex justify-between items-center">
+                            <button type="button" onClick={() => addMoreEvidenceRow(gi)} className="px-3 py-1 bg-gray-200 text-gray-600 font-medium rounded text-[10px] hover:bg-gray-300 transition-colors shadow-sm">
+                              + Add Evidence
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div>
+                    <button type="button" onClick={addMoreEvidenceGroup} className="px-3 py-1 bg-gray-200 rounded">Add Evidence Group</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2001,51 +2119,64 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             )}
 
             {/* Footer with Navigation */}
-            <div className="mt-4 flex items-center justify-between pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={handlePrev}
-                disabled={availableSteps.indexOf(currentStep) === 0 || availableSteps.length === 0}
-                className="inline-flex items-center space-x-1 px-3 py-1 border border-gray-300 rounded text-gray-700 disabled:opacity-50 text-xs"
-              >
-                <ChevronLeft className="w-3 h-3" />
-                <span>Prev</span>
-              </button>
-
-              <div className="flex space-x-1">
-                {availableSteps.map((step) => (
-                  <button
-                    key={step}
-                    type="button"
-                    onClick={() => setCurrentStep(step)}
-                    className={`w-6 h-6 rounded-full font-semibold text-[10px] ${currentStep === step
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                  >
-                    {step}
-                  </button>
-                ))}
+            <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+              {/* Reject / Submit row */}
+              <div className="flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={handleReject}
+                  className="inline-flex items-center space-x-1 px-4 py-1.5 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 text-xs font-medium"
+                >
+                  <span>Reject</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleScreenSubmit}
+                  disabled={isUpdatingEvidence || isUpdatingLead}
+                  className="inline-flex items-center space-x-1 px-4 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-xs font-medium"
+                >
+                  <span>{isUpdatingLead || isUpdatingEvidence ? "Saving..." : "Submit"}</span>
+                </button>
               </div>
 
-              {availableSteps.indexOf(currentStep) === availableSteps.length - 1 ? (
+              {/* Navigation row */}
+              <div className="flex items-center justify-between">
                 <button
-                  type="submit"
-                  disabled={isAddingEvidence || isUpdatingLead || isLoadingLead}
-                  className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 text-xs"
+                  type="button"
+                  onClick={handlePrev}
+                  disabled={availableSteps.indexOf(currentStep) === 0 || availableSteps.length === 0}
+                  className="inline-flex items-center space-x-1 px-3 py-1 border border-gray-300 rounded text-gray-700 disabled:opacity-50 text-xs"
                 >
-                  <span>{isUpdatingLead || isAddingEvidence ? "..." : "Submit"}</span>
+                  <ChevronLeft className="w-3 h-3" />
+                  <span>Prev</span>
                 </button>
-              ) : (
+
+                <div className="flex space-x-1">
+                  {availableSteps.map((step) => (
+                    <button
+                      key={step}
+                      type="button"
+                      onClick={() => setCurrentStep(step)}
+                      className={`w-6 h-6 rounded-full font-semibold text-[10px] ${currentStep === step
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        }`}
+                    >
+                      {step}
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
+                  disabled={availableSteps.indexOf(currentStep) === availableSteps.length - 1}
+                  className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 text-xs"
                 >
                   <span>Next</span>
                   <ChevronRight className="w-3 h-3" />
                 </button>
-              )}
+              </div>
             </div>
           </>
         )}

@@ -211,9 +211,9 @@ export const leadsApiSlice = apiSlice.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.data.map((lead) => ({ type: "Lead", id: lead.id })),
-              { type: "Lead", id: "LIST" },
-            ]
+            ...result.data.map((lead) => ({ type: "Lead", id: lead.id })),
+            { type: "Lead", id: "LIST" },
+          ]
           : [{ type: "Lead", id: "LIST" }],
     }),
     getLeadById: builder.query({
@@ -243,9 +243,13 @@ export const leadsApiSlice = apiSlice.injectEndpoints({
       }),
       invalidatesTags: [{ type: "Lead", id: "LIST" }],
     }),
-    addPropertyEvidence: builder.mutation({
+    getPropertyEvidence: builder.query({
+      query: (leadId) => `/leads-property-detail-evidence/${leadId}`,
+      providesTags: (result, error, leadId) => [{ type: "Lead", id: leadId }],
+    }),
+    updatePropertyEvidence: builder.mutation({
       query: (evidenceData) => ({
-        url: "/add-leads-property-detail-evidence",
+        url: "/update-leads-property-detail-evidence",
         method: "POST",
         body: evidenceData,
       }),
@@ -325,5 +329,6 @@ export const {
   useCreateLeadMutation,
   useUpdateLeadMutation,
   useDeleteLeadMutation,
-  useAddPropertyEvidenceMutation,
+  useUpdatePropertyEvidenceMutation,
+  useGetPropertyEvidenceQuery,
 } = leadsApiSlice;
