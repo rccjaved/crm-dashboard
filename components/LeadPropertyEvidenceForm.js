@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Copy, Plus } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useUpdatePropertyEvidenceMutation, useGetPropertyEvidenceQuery, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
 import { toast } from "react-toastify";
@@ -149,21 +149,30 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const { userInfo, modules } = useSelector((state) => state.auth);
 
   const availableSteps = useMemo(() => {
-    if (!userInfo) return [1, 2, '3A', '3B', 4, 5, 6, 7];
-    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, '3A', '3B', 4, 5, 6, 7];
+    if (!userInfo) return [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
+    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
 
     const enabledKeys = (modules || []).filter(m => m.is_enabled).map(m => m.module_key);
     const steps = [];
-    for (let i = 1; i <= 7; i++) {
-      if (enabledKeys.includes(`lead_form_screen_${i}`)) {
-        if (i === 3) {
-          steps.push('3A', '3B');
-        } else {
-          steps.push(i);
-        }
+    const stepLabels = [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
+
+    // Logic for permissions based on old screen numbers or updated ones?
+    // User didn't specify backend changes, so I'll keep the loop but map to the new available list.
+    // For now, if we assume lead_form_screen_1 to 7 are the only ones in backend:
+    for (let i = 1; i <= 11; i++) {
+      // This loop needs to be screen-aware.
+      // Since we have 3A/3B and 7A/7B, let's just use the full list if they have permissions for the base numbers.
+      if (i === 3) {
+        if (enabledKeys.includes(`lead_form_screen_3`)) steps.push('3A', '3B');
+      } else if (i === 7) {
+        if (enabledKeys.includes(`lead_form_screen_7`)) steps.push('7A', '7B');
+      } else {
+        if (enabledKeys.includes(`lead_form_screen_${i}`)) steps.push(i);
       }
     }
-    return steps;
+    // If no steps returned from modules (e.g. they only had 1-7), but we have 11 now, 
+    // we might need to adjust or just default to the full list for now if admin.
+    return steps.length > 0 ? steps : [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
   }, [userInfo, modules]);
 
   const [updatePropertyEvidence, { isLoading: isUpdatingEvidence }] = useUpdatePropertyEvidenceMutation();
@@ -177,6 +186,16 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       setCurrentStep(availableSteps[0]);
     }
   }, [availableSteps, currentStep]);
+
+  const copyToClipboard = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Link copied to clipboard!");
+    }).catch(err => {
+      console.error("Copy failed:", err);
+      toast.error("Failed to copy link");
+    });
+  };
 
   const handlePrev = () => {
     const currentIndex = availableSteps.indexOf(currentStep);
@@ -201,6 +220,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     // Property evidence fields
     lead_id: leadId,
     lead_provider: "",
+    request_data_match: "",
     property_ownership: "",
     services: [],
     documents: JSON.parse(JSON.stringify(HARDCODED_DOCUMENTS)),
@@ -305,12 +325,40 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     solid_wall_area: null,
     glazed_area: null,
     wall_excluding_windows_pici: null,
-    alternate_phone: "",
+    alternate_phone_number: "",
     dob: "",
-    benefits: "",
+    benefits: [],
     total_wall_pici: null,
     popt: null,
+    notes_screen2: "",
     add_more_evidence: [],
+    installation_approval: { status: "", notes: "" },
+    pre_paperwork_7a: {
+      ventilation_assessment_file: "",
+      floor_plan: "",
+      assessment: "",
+      retrofit_design: "",
+      solar_ashp_design: "",
+      customer_quotes: "",
+      add_more_evidence: [],
+    },
+    material_7b: {
+      solar: { status: "", date_order: "" },
+      ashp: { status: "", date_order: "" },
+      boiler_hc: { status: "", date_order: "" },
+      loft: { status: "", date_order: "" },
+      scaffolding_order: { status: "", date_order: "" },
+      scaffolding_date: "",
+      add_more_evidence: [],
+    },
+    installation_requirements_8: {
+      notes: "",
+      add_more_evidence: [],
+    },
+    internal_c3_requirements_9: {
+      notes: "",
+      add_more_evidence: [],
+    },
   });
 
   // Update form when lead or evidence data is fetched
@@ -324,13 +372,13 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           dob: lead.dob ? lead.dob.split("T")[0] : "",
           email: lead.email || "",
           mobile: lead.mobile || "",
-          alternate_phone: lead.alternate_phone || "",
+          alternate_phone_number: lead.alternate_phone_number || "",
           address: lead.address || "",
           lead_date: lead.created_at ? lead.created_at.split("T")[0] : "",
           lead_id: leadId,
           lead_provider: lead.lead_provider || "",
           property_ownership: lead.property_ownership || "Owner Occupied",
-          benefits: Array.isArray(lead.benefits) ? lead.benefits[0] || "" : lead.benefits || "",
+          benefits: lead.benefits ? (Array.isArray(lead.benefits) ? lead.benefits : [lead.benefits]) : [],
           services: lead.services || [],
         }));
       }
@@ -349,6 +397,27 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
           epc_metrics: ev.epc_metrics || prev.epc_metrics,
           data_matched_status: ev.data_matched_status || [],
           add_more_evidence: ev.add_more_evidence || [],
+          installation_approval: ev.installation_approval || { status: "", notes: "" },
+          pre_paperwork_7a: ev.pre_paperwork_7a || {
+            ventilation_assessment_file: "",
+            floor_plan: "",
+            assessment: "",
+            retrofit_design: "",
+            solar_ashp_design: "",
+            customer_quotes: "",
+            add_more_evidence: [],
+          },
+          material_7b: ev.material_7b || {
+            solar: { status: "", date_order: "" },
+            ashp: { status: "", date_order: "" },
+            boiler_hc: { status: "", date_order: "" },
+            loft: { status: "", date_order: "" },
+            scaffolding_order: { status: "", date_order: "" },
+            scaffolding_date: "",
+            add_more_evidence: [],
+          },
+          installation_requirements_8: ev.installation_requirements_8 || { notes: "", add_more_evidence: [] },
+          internal_c3_requirements_9: ev.internal_c3_requirements_9 || { notes: "", add_more_evidence: [] },
         }));
       }
     }
@@ -657,36 +726,161 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     });
   };
 
-  const saveProposedMeasures = async () => {
-    try {
-      // ensure lead_id available
-      if (!formData.lead_id) return;
-      // call updateLead to update services on the lead
-      await updateLead({ id: formData.lead_id, services: formData.services }).unwrap();
-      toast.success("Services saved");
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to save services");
-    }
+  // Step 3A More Evidence Helpers
+  const addMoreEvidence3aGroup = () => {
+    setFormData((prev) => ({
+      ...prev,
+      add_more_evidence_3a: [...(Array.isArray(prev.add_more_evidence_3a) ? prev.add_more_evidence_3a : []), { main_folder: "", documents: [] }],
+    }));
+  };
+
+  const removeMoreEvidence3aGroup = (index) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_3a) ? [...prev.add_more_evidence_3a] : [];
+      arr.splice(index, 1);
+      return { ...prev, add_more_evidence_3a: arr };
+    });
+  };
+
+  const updateMoreEvidence3aGroup = (index, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_3a) ? [...prev.add_more_evidence_3a] : [];
+      const g = { ...(arr[index] || {}) };
+      g[key] = value;
+      arr[index] = g;
+      return { ...prev, add_more_evidence_3a: arr };
+    });
+  };
+
+  const addMoreEvidence3aRow = (groupIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_3a) ? [...prev.add_more_evidence_3a] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      g.documents = [...(Array.isArray(g.documents) ? g.documents : []), { name: "", status: "", issue: "" }];
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence_3a: arr };
+    });
+  };
+
+  const removeMoreEvidence3aRow = (groupIndex, docIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_3a) ? [...prev.add_more_evidence_3a] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      docs.splice(docIndex, 1);
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence_3a: arr };
+    });
+  };
+
+  const updateMoreEvidence3aRow = (groupIndex, docIndex, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_3a) ? [...prev.add_more_evidence_3a] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      const d = { ...(docs[docIndex] || {}) };
+      d[key] = value;
+      docs[docIndex] = d;
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence_3a: arr };
+    });
+  };
+
+  const addMoreEvidence4Group = () => {
+    setFormData((prev) => ({
+      ...prev,
+      add_more_evidence_for_screen_4: [...(Array.isArray(prev.add_more_evidence_for_screen_4) ? prev.add_more_evidence_for_screen_4 : []), { main_folder: "", documents: [] }],
+    }));
+  };
+
+  const removeMoreEvidence4Group = (index) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_for_screen_4) ? [...prev.add_more_evidence_for_screen_4] : [];
+      arr.splice(index, 1);
+      return { ...prev, add_more_evidence_for_screen_4: arr };
+    });
+  };
+
+  const updateMoreEvidence4Group = (index, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_for_screen_4) ? [...prev.add_more_evidence_for_screen_4] : [];
+      const g = { ...(arr[index] || {}) };
+      g[key] = value;
+      arr[index] = g;
+      return { ...prev, add_more_evidence_for_screen_4: arr };
+    });
+  };
+
+  const addMoreEvidence4Row = (groupIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_for_screen_4) ? [...prev.add_more_evidence_for_screen_4] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      g.documents = [...(Array.isArray(g.documents) ? g.documents : []), { name: "", status: "", issue: "" }];
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence_for_screen_4: arr };
+    });
+  };
+
+  const removeMoreEvidence4Row = (groupIndex, docIndex) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_for_screen_4) ? [...prev.add_more_evidence_for_screen_4] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      docs.splice(docIndex, 1);
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence_for_screen_4: arr };
+    });
+  };
+
+  const updateMoreEvidence4Row = (groupIndex, docIndex, key, value) => {
+    setFormData((prev) => {
+      const arr = Array.isArray(prev.add_more_evidence_for_screen_4) ? [...prev.add_more_evidence_for_screen_4] : [];
+      const g = { ...(arr[groupIndex] || { documents: [] }) };
+      const docs = Array.isArray(g.documents) ? [...g.documents] : [];
+      const d = { ...(docs[docIndex] || {}) };
+      d[key] = value;
+      docs[docIndex] = d;
+      g.documents = docs;
+      arr[groupIndex] = g;
+      return { ...prev, add_more_evidence_for_screen_4: arr };
+    });
   };
   // Map each screen to the fields it owns
   const getScreenFields = (step) => {
     switch (step) {
       case 1:
-        return { isLeadScreen: true, leadFields: ['name', 'dob', 'email', 'mobile', 'alternate_phone', 'address', 'lead_provider', 'property_ownership', 'benefits', 'services'], evidenceFields: ['lead_provider', 'property_ownership'] };
+        return { isLeadScreen: true, leadFields: ['name', 'dob', 'email', 'mobile', 'alternate_phone_number', 'address', 'lead_provider', 'property_ownership', 'benefits', 'services'], evidenceFields: ['lead_provider', 'request_data_match', 'property_ownership'] };
       case 2:
-        return { isLeadScreen: false, evidenceFields: ['data_plate', 'gas_safe', 'data_matched_status', 'epc_link', 'zoopla_link', 'rightmove_link', 'mouseprice_link', 'propertychecker_link', 'survey_folder_link', 'google_maps_checked', 'google_earth_checked', 'requires_c1', 'booking_date'] };
+        return { isLeadScreen: false, evidenceFields: ['gas_safe', 'data_matched_status', 'epc_link', 'zoopla_link', 'rightmove_link', 'mouseprice_link', 'propertychecker_link', 'survey_folder_link', 'google_maps_checked', 'google_earth_checked', 'requires_c1', 'booking_date', 'notes_screen2'] };
       case '3A':
-        return { isLeadScreen: false, evidenceFields: ['make_model_serial', 'ubil_hthe_name', 'ubil_3_months_old', 'ubil_video_available', 'pres_hhev_name', 'pres_3_months_old', 'pres_video_available', 'gcgp', 'shower_type', 'gas_electric_meters', 'heater_type', 'front_elevation_photos', 'rear_elevation_photos', 'wall_thickness_main', 'wall_thickness_ext_1', 'wall_thickness_ext_2', 'pitched_roof_main', 'pmhs_with_dataplate', 'pitched_roof_ext_1_sc_evidence_150mm', 'pitched_roof_ext_2_sc_evidence_150mm', 'secondary_heating_source_evidence', 'cavity_filled_evidence', 'notes'] };
+        return { isLeadScreen: false, evidenceFields: ['make_model_serial', 'boiler_data_plate', 'serial_number', 'boiler_close_ups_wide_angle_pipes', 'boiler_pcdb', 'add_more_evidence_3a', 'ubil_hthe_name', 'ubil_3_months_old', 'ubil_video_available', 'pres_hhev_name', 'pres_3_months_old', 'pres_video_available', 'gcgp', 'shower_type', 'gas_electric_meters', 'heater_type', 'front_elevation_photos', 'rear_elevation_photos', 'wall_thickness_main', 'wall_thickness_ext_1', 'wall_thickness_ext_2', 'pitched_roof_main', 'pmhs_with_dataplate', 'pitched_roof_ext_1_sc_evidence_150mm', 'pitched_roof_ext_2_sc_evidence_150mm', 'secondary_heating_source_evidence', 'cavity_filled_evidence', 'notes'] };
       case '3B':
         return { isLeadScreen: false, evidenceFields: ['add_more_evidence'] };
       case 4:
-        return { isLeadScreen: false, evidenceFields: ['epr_check_matching', 'installation_changes', 'pas10_changes_before_submit', 'updating_master_sheets', 'master_sheet_giant_source', 'update_tecnica_order_sheet', 'c3_issues_found_internal', 'c2_packs_all_key_parts_and_stages', 'c3_packs_all_key_parts', 'queries', 'queries_status', 'trustmark', 'lodgement', 'trustmark_project_certificate', 'project_stage1_trustmark_project_certificate', 'tecnica', 'scaffolding_removed_date', 'rubbish_collected_date'] };
-      case 5:
         return { isLeadScreen: false, evidenceFields: ['start_sap', 'end_sap', 'number_metrics', 'epc_metrics', 'high_value_notes'] };
-      case 6:
+      case 5:
+        // Old Screen 6
         return { isLeadScreen: false, evidenceFields: ['floor_details', 'total_epc_area', 'total_floor_area_excluding_rir', 'heat_demand_total_wall_area', 'total_ground_floor_area', 'highest_floor_area', 'total_hlp', 'loft_details', 'total_loft', 'ba', 'popt', 'wall_ext_details', 'solid_wall_area', 'glazed_area', 'wall_excluding_windows_pici', 'total_wall_pici'] };
-      case 7:
+      case 6:
+        return { isLeadScreen: false, evidenceFields: ['installation_approval'] };
+      case '7A':
+        return { isLeadScreen: false, evidenceFields: ['pre_paperwork_7a'] };
+      case '7B':
+        return { isLeadScreen: false, evidenceFields: ['material_7b'] };
+      case 8:
+        return { isLeadScreen: false, evidenceFields: ['installation_requirements_8'] };
+      case 9:
+        return { isLeadScreen: false, evidenceFields: ['internal_c3_requirements_9'] };
+      case 10:
+        // Old Screen 7
         return { isLeadScreen: false, evidenceFields: ['documents'] };
+      case 11:
+        // Old Screen 5
+        return { isLeadScreen: false, evidenceFields: ['epr_check_matching', 'installation_changes', 'pas10_changes_before_submit', 'updating_master_sheets', 'master_sheet_giant_source', 'update_tecnica_order_sheet', 'c3_issues_found_internal', 'c2_packs_all_key_parts_and_stages', 'c3_packs_all_key_parts', 'queries', 'queries_status', 'trustmark', 'lodgement', 'trustmark_project_certificate', 'project_stage1_trustmark_project_certificate', 'tecnica', 'scaffolding_removed_date', 'rubbish_collected_date'] };
+
       default:
         return { isLeadScreen: false, evidenceFields: [] };
     }
@@ -783,7 +977,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         ) : (
           <>
             {/* Step 1: Lead Provider Information */}
-            {currentStep === 1 && (
+            {currentStep == 1 && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3">
                   {/* Row 1 */}
@@ -807,6 +1001,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
                     />
                   </div>
+
+
 
                   {/* Row 2 */}
                   <div className="col-span-2 flex items-center space-x-2">
@@ -882,14 +1078,14 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Alternative Phone</label>
                     <input
                       type="tel"
-                      name="alternate_phone"
-                      value={formData.alternate_phone}
+                      name="alternate_phone_number"
+                      value={formData.alternate_phone_number}
                       onChange={handleInputChange}
                       className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
                     />
                   </div>
 
-                  {/* Row 6 */}
+                  {/* Row 6: Requested Measures & Request Data Match */}
                   <div className="flex items-center space-x-2">
                     <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Requested measures</label>
                     <div className="flex-1 flex flex-wrap gap-x-3 gap-y-1 py-1">
@@ -919,6 +1115,20 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       ))}
                     </div>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm font-semibold text-gray-700 w-32 border-b border-gray-100 pb-1">Request Data match</label>
+                    <select
+                      name="request_data_match"
+                      value={formData.request_data_match}
+                      onChange={handleInputChange}
+                      className="flex-1 py-1 border-b border-gray-300 focus:border-blue-500 outline-none text-sm"
+                    >
+                      <option value="">Select Option</option>
+                      <option value="Applied">Applied</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Not Required">Not Required</option>
+                    </select>
+                  </div>
                   <div className="col-span-2 flex items-start space-x-2 pt-1">
                     <label className="text-sm font-semibold text-gray-700 w-32 shrink-0 pt-1">Type of Benefit</label>
                     <div className="flex-1 flex flex-wrap gap-1.5">
@@ -933,9 +1143,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                         { label: "Housing Benefit", full: "Housing Benefit", icon: "🏠" },
                         { label: "Pension Credit (SC)", full: "Pension Credit Saving Credits", icon: "💰" },
                       ].map(({ label, full, icon }) => {
-                        const selected = Array.isArray(formData.benefits)
-                          ? formData.benefits.includes(full)
-                          : formData.benefits === full;
+                        const selected = Array.isArray(formData.benefits) && formData.benefits.includes(full);
                         return (
                           <button
                             key={full}
@@ -966,15 +1174,11 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
 
             {/* Step 2: Property & Link Details */}
-            {currentStep === 2 && (
+            {currentStep == 2 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-gray-800 mb-2">Property & Link Details</h3>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Data Plate</label>
-                    <input type="text" name="data_plate" value={formData.data_plate} onChange={handleInputChange} placeholder="e.g., DP-456" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Gas Safe</label>
                     <select
@@ -988,7 +1192,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                       <option value="false">No</option>
                     </select>
                   </div>
-                  <div className="col-span-2 mt-2">
+                  <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Data Matched Status</label>
                     <div className="flex flex-wrap gap-x-4 gap-y-1">
                       {["Matched", "Unmatched Verified", "Unverified"].map((status) => (
@@ -1008,7 +1212,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                                 };
                               });
                             }}
-                            className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            className="w-3.5 h-3.5 rounded border-gray-100 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-xs text-gray-700">{status}</span>
                         </label>
@@ -1019,34 +1223,64 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
                 <div>
                   <label className="block text-xs font-medium text-gray-600">EPC Link</label>
-                  <input type="url" name="epc_link" value={formData.epc_link} onChange={handleInputChange} placeholder="https://example.com/epc" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                  <div className="flex items-center space-x-1 mt-0.5">
+                    <input type="url" name="epc_link" value={formData.epc_link} onChange={handleInputChange} placeholder="https://example.com/epc" className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <button type="button" onClick={() => copyToClipboard(formData.epc_link)} disabled={!formData.epc_link} className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Zoopla Link</label>
-                    <input type="url" name="zoopla_link" value={formData.zoopla_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <div className="flex items-center space-x-1 mt-0.5">
+                      <input type="url" name="zoopla_link" value={formData.zoopla_link} onChange={handleInputChange} placeholder="Link" className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <button type="button" onClick={() => copyToClipboard(formData.zoopla_link)} disabled={!formData.zoopla_link} className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Right Move Link</label>
-                    <input type="url" name="rightmove_link" value={formData.rightmove_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <div className="flex items-center space-x-1 mt-0.5">
+                      <input type="url" name="rightmove_link" value={formData.rightmove_link} onChange={handleInputChange} placeholder="Link" className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <button type="button" onClick={() => copyToClipboard(formData.rightmove_link)} disabled={!formData.rightmove_link} className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Mouse Price Link</label>
-                    <input type="url" name="mouseprice_link" value={formData.mouseprice_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <div className="flex items-center space-x-1 mt-0.5">
+                      <input type="url" name="mouseprice_link" value={formData.mouseprice_link} onChange={handleInputChange} placeholder="Link" className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <button type="button" onClick={() => copyToClipboard(formData.mouseprice_link)} disabled={!formData.mouseprice_link} className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600">Property Checker Link</label>
-                    <input type="url" name="propertychecker_link" value={formData.propertychecker_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <div className="flex items-center space-x-1 mt-0.5">
+                      <input type="url" name="propertychecker_link" value={formData.propertychecker_link} onChange={handleInputChange} placeholder="Link" className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <button type="button" onClick={() => copyToClipboard(formData.propertychecker_link)} disabled={!formData.propertychecker_link} className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-medium text-gray-600">Survey Folder Link</label>
-                  <input type="url" name="survey_folder_link" value={formData.survey_folder_link} onChange={handleInputChange} placeholder="Link" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                  <div className="flex items-center space-x-1 mt-0.5">
+                    <input type="url" name="survey_folder_link" value={formData.survey_folder_link} onChange={handleInputChange} placeholder="Link" className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <button type="button" onClick={() => copyToClipboard(formData.survey_folder_link)} disabled={!formData.survey_folder_link} className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-30 disabled:cursor-not-allowed">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 items-center">
@@ -1072,353 +1306,436 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   <label className="block text-xs font-medium text-gray-600">Booking Date</label>
                   <input type="date" name="booking_date" value={formData.booking_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                 </div>
-              </div>
-            )}
 
-            {/* Step 3: Mandatory Evidence */}
-            {currentStep === '3A' && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Mandatory Evidence (3A)</h3>
-
-                <div className="mb-4">
-                  <label className="block text-xs font-medium text-gray-600">Make/Model Serial Number</label>
-                  <input type="text" name="make_model_serial" value={formData.make_model_serial} onChange={handleInputChange} placeholder="e.g., Glow Worm FuelSaver MKII" className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">UBIL is for HTHE Name</label>
-                    <select
-                      name="ubil_hthe_name"
-                      value={formData.ubil_hthe_name}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Available">Available</option>
-                      <option value="Not available">Not available</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">UBIL 3 Months OLD</label>
-                    <select
-                      name="ubil_3_months_old"
-                      value={formData.ubil_3_months_old}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Available">Available</option>
-                      <option value="Not available">Not available</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">UBIL Video Available</label>
-                    <select
-                      name="ubil_video_available"
-                      value={formData.ubil_video_available}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Available">Available</option>
-                      <option value="Not available">Not available</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">PRES is for HHEV Name</label>
-                    <select
-                      name="pres_hhev_name"
-                      value={formData.pres_hhev_name}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Select...</option>
-                      <option value="checked_and_confirmed">Checked and Confirmed</option>
-                      <option value="not_available">Not Available</option>
-                      <option value="not_required">Not Required</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">PRES 3 Months OLD</label>
-                    <select
-                      name="pres_3_months_old"
-                      value={formData.pres_3_months_old}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Select...</option>
-                      <option value="checked_and_confirmed">Checked and Confirmed</option>
-                      <option value="not_available">Not Available</option>
-                      <option value="not_required">Not Required</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">PRES Video Available</label>
-                    <select
-                      name="pres_video_available"
-                      value={formData.pres_video_available}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Select...</option>
-                      <option value="checked_and_confirmed">Checked and Confirmed</option>
-                      <option value="not_available">Not Available</option>
-                      <option value="not_required">Not Required</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">GCGP</label>
-                    <select
-                      name="gcgp"
-                      value={formData.gcgp}
-                      onChange={handleInputChange}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="gas_bill">Gas bill before Mar 2022</option>
-                      <option value="gas_meter">Gas Meter date before March 2022</option>
-                      <option value="epc">EPC</option>
-                      <option value="gas_safe">Gas Safe</option>
-                      <option value="not_available">Not Available</option>
-                    </select>
-                  </div>
-
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Shower Type</label>
-                    <select
-                      name="shower_type"
-                      value={formData.shower_type}
-                      onChange={handleInputChange}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Electric">Electric</option>
-                      <option value="Non Electric">Non Electric</option>
-                    </select>
-                  </div>
-                </div>
-
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Gas and Electric Meters</label>
-                    <select
-                      name="gas_electric_meters"
-                      value={formData.gas_electric_meters}
-                      onChange={handleInputChange}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="check_and_verified">Check and verified</option>
-                      <option value="photos_missing">Photos Missing</option>
-
-                    </select>
-                  </div>
-
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Gas and Electric Heater</label>
-                    <select
-                      name="heater_type"
-                      value={formData.heater_type}
-                      onChange={handleInputChange}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Electric">Gas Heater</option>
-                      <option value="Non Electric">Electric Heater</option>
-                    </select>
-                  </div>
-                </div>
-
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Front Elevation all angle photos and issues EPOP</label>
-                    <select
-                      name="front_elevation_photos"
-                      value={formData.front_elevation_photos}
-                      onChange={handleInputChange}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Rear Elevation all angle photos and issues EPOP</label>
-                    <select
-                      name="rear_elevation_photos"
-                      value={Array.isArray(formData.rear_elevation_photos) ? formData.rear_elevation_photos.join(", ") : (formData.rear_elevation_photos || "")}
-                      onChange={(e) => handleArrayInput("rear_elevation_photos", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                </div>
-
-
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Wall thickness Main</label>
-                    <select
-                      name="wall_thickness_main"
-                      value={Array.isArray(formData.wall_thickness_main) ? formData.wall_thickness_main.join(", ") : (formData.wall_thickness_main || "")}
-                      onChange={(e) => handleArrayInput("wall_thickness_main", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Wall Thickness Ext 1</label>
-                    <select
-                      name="wall_thickness_ext_1"
-                      value={Array.isArray(formData.wall_thickness_ext_1) ? formData.wall_thickness_ext_1.join(", ") : (formData.wall_thickness_ext_1 || "")}
-                      onChange={(e) => handleArrayInput("wall_thickness_ext_1", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Wall Thickness Ext 2</label>
-                    <select
-                      name="wall_thickness_ext_2"
-                      value={Array.isArray(formData.wall_thickness_ext_2) ? formData.wall_thickness_ext_2.join(", ") : (formData.wall_thickness_ext_2 || "")}
-                      onChange={(e) => handleArrayInput("wall_thickness_ext_2", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Pitched Roof Main (evidence added in PICP)</label>
-                    <select
-                      name="pitched_roof_main"
-                      value={Array.isArray(formData.pitched_roof_main) ? formData.pitched_roof_main.join(", ") : (formData.pitched_roof_main || "")}
-                      onChange={(e) => handleArrayInput("pitched_roof_main", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">PMHS with Dataplate, PRT, TRV and Gas Meter</label>
-                    <select
-                      name="pmhs_with_dataplate"
-                      value={Array.isArray(formData.pmhs_with_dataplate) ? formData.pmhs_with_dataplate.join(", ") : (formData.pmhs_with_dataplate || "")}
-                      onChange={(e) => handleArrayInput("pmhs_with_dataplate", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Pitched roof EXT 1 SC evidence 150mm</label>
-                    <select
-                      name="pitched_roof_ext_1_sc_evidence_150mm"
-                      value={Array.isArray(formData.pitched_roof_ext_1_sc_evidence_150mm) ? formData.pitched_roof_ext_1_sc_evidence_150mm.join(", ") : (formData.pitched_roof_ext_1_sc_evidence_150mm || "")}
-                      onChange={(e) => handleArrayInput("pitched_roof_ext_1_sc_evidence_150mm", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Pitched roof EXT 2 SC evidence 150mm</label>
-                    <select
-                      name="pitched_roof_ext_2_sc_evidence_150mm"
-                      value={Array.isArray(formData.pitched_roof_ext_2_sc_evidence_150mm) ? formData.pitched_roof_ext_2_sc_evidence_150mm.join(", ") : (formData.pitched_roof_ext_2_sc_evidence_150mm || "")}
-                      onChange={(e) => handleArrayInput("pitched_roof_ext_2_sc_evidence_150mm", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                </div>
-
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Secondary Heating Source Evidence</label>
-                    <select
-                      name="secondary_heating_source_evidence"
-                      value={Array.isArray(formData.secondary_heating_source_evidence) ? formData.secondary_heating_source_evidence.join(", ") : (formData.secondary_heating_source_evidence || "")}
-                      onChange={(e) => handleArrayInput("secondary_heating_source_evidence", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Cavity FIlled Evidence 300mm Main</label>
-                    <select
-                      name="cavity_filled_evidence"
-                      value={Array.isArray(formData.cavity_filled_evidence_300mm_main) ? formData.cavity_filled_evidence_300mm_main.join(", ") : (formData.cavity_filled_evidence_300mm_main || "")}
-                      onChange={(e) => handleArrayInput("cavity_filled_evidence_300mm_main", e.target.value)}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Select...</option>
-                      <option value="Checked and verified">Checked and verified</option>
-                      <option value="Photos Missing">Photos Missing</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-600">Notes / Additional Information</label>
+                <div className="mt-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Notes (Screen 2)</label>
                   <textarea
-                    name="notes"
-                    value={formData.notes}
+                    name="notes_screen2"
+                    rows="2"
+                    value={formData.notes_screen2}
                     onChange={handleInputChange}
-                    placeholder="Any additional information"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    rows="3"
+                    placeholder="Enter notes for screen 2..."
+                    className="block w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
             )}
 
+            {/* Step 3: Mandatory Evidence */}
+            {currentStep == '3A' && (
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b pb-1">Boiler &amp; Surveys (3A)</h3>
+
+                {/* Table-style 2-column layout */}
+                <div className="border border-gray-200 rounded overflow-hidden text-xs">
+
+                  {/* Row: UBIL for HTHE | PRES for HHEV */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">UBIL for HTHE</div>
+                      <div className="px-1 py-1">
+                        <select name="ubil_hthe_name" value={formData.ubil_hthe_name} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">PRES for HHEV</div>
+                      <div className="px-1 py-1">
+                        <select name="pres_hhev_name" value={formData.pres_hhev_name} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: UBIL 3 Months OLD | PRES 3 Months OLD */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">UBIL 3 Months OLD</div>
+                      <div className="px-1 py-1">
+                        <select name="ubil_3_months_old" value={formData.ubil_3_months_old} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">PRES 3 Months OLD</div>
+                      <div className="px-1 py-1">
+                        <select name="pres_3_months_old" value={formData.pres_3_months_old} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: UBIL Video Available | PRES Video Available */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">UBIL Video Available</div>
+                      <div className="px-1 py-1">
+                        <select name="ubil_video_available" value={formData.ubil_video_available} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">PRES Video Available</div>
+                      <div className="px-1 py-1">
+                        <select name="pres_video_available" value={formData.pres_video_available} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Make/Model | Serial Number */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Make and Model</div>
+                      <div className="px-1 py-1">
+                        <input type="text" name="make_model_serial" value={formData.make_model_serial} onChange={handleInputChange} placeholder="e.g. Glow Worm" className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Serial Number</div>
+                      <div className="px-1 py-1">
+                        <input type="text" name="serial_number" value={formData.serial_number} onChange={handleInputChange} placeholder="Enter serial..." className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: GCGP | Front Elevation EPOP */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">GCGP</div>
+                      <div className="px-1 py-1">
+                        <select name="gcgp" value={formData.gcgp} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Completed">Completed</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Available">Not Available</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Front Elevation all angle photos EPOP</div>
+                      <div className="px-1 py-1">
+                        <select name="front_elevation_photos" value={Array.isArray(formData.front_elevation_photos) ? formData.front_elevation_photos.join(", ") : (formData.front_elevation_photos || "")} onChange={(e) => handleArrayInput('front_elevation_photos', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Gas Electric Meters | Rear Elevation EPOP */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Gas and Electric Meters</div>
+                      <div className="px-1 py-1">
+                        <select name="gas_electric_meters" value={formData.gas_electric_meters} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Electric">Electric</option>
+                          <option value="Non Electric">Non Electric</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Rear Elevation all angle photos EPOP</div>
+                      <div className="px-1 py-1">
+                        <select name="rear_elevation_photos" value={Array.isArray(formData.rear_elevation_photos) ? formData.rear_elevation_photos.join(", ") : (formData.rear_elevation_photos || "")} onChange={(e) => handleArrayInput('rear_elevation_photos', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Wall thickness Main | Boiler Close ups */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Wall thickness Main</div>
+                      <div className="px-1 py-1">
+                        <select name="wall_thickness_main" value={Array.isArray(formData.wall_thickness_main) ? formData.wall_thickness_main.join(", ") : (formData.wall_thickness_main || "")} onChange={(e) => handleArrayInput('wall_thickness_main', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Boiler Close ups, Wide angle, Pipes</div>
+                      <div className="px-1 py-1">
+                        <select name="boiler_close_ups_wide_angle_pipes" value={formData.boiler_close_ups_wide_angle_pipes} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Applied">Applied</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Required">Not Required</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Wall Thickness Ext 1 | Existing TRV, HC */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Wall Thickness Ext 1</div>
+                      <div className="px-1 py-1">
+                        <select name="wall_thickness_ext_1" value={Array.isArray(formData.wall_thickness_ext_1) ? formData.wall_thickness_ext_1.join(", ") : (formData.wall_thickness_ext_1 || "")} onChange={(e) => handleArrayInput('wall_thickness_ext_1', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Existing TRV, HC</div>
+                      <div className="px-1 py-1">
+                        <select name="pmhs_with_dataplate" value={Array.isArray(formData.pmhs_with_dataplate) ? formData.pmhs_with_dataplate.join(", ") : (formData.pmhs_with_dataplate || "")} onChange={(e) => handleArrayInput('pmhs_with_dataplate', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Wall Thickness Ext 2 | Boiler Data Plate */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Wall Thickness Ext 2</div>
+                      <div className="px-1 py-1">
+                        <select name="wall_thickness_ext_2" value={Array.isArray(formData.wall_thickness_ext_2) ? formData.wall_thickness_ext_2.join(", ") : (formData.wall_thickness_ext_2 || "")} onChange={(e) => handleArrayInput('wall_thickness_ext_2', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Boiler Data Plate</div>
+                      <div className="px-1 py-1">
+                        <select name="boiler_data_plate" value={formData.boiler_data_plate} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Applied">Applied</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Not Required">Not Required</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Pitched Roof EXT 1 | Boiler PCDB */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Pitched roof EXT 1 SC (150mm)</div>
+                      <div className="px-1 py-1">
+                        <select name="pitched_roof_ext_1_sc_evidence_150mm" value={Array.isArray(formData.pitched_roof_ext_1_sc_evidence_150mm) ? formData.pitched_roof_ext_1_sc_evidence_150mm.join(", ") : (formData.pitched_roof_ext_1_sc_evidence_150mm || "")} onChange={(e) => handleArrayInput('pitched_roof_ext_1_sc_evidence_150mm', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Boiler PCDB</div>
+                      <div className="px-1 py-1">
+                        <select name="boiler_pcdb" value={formData.boiler_pcdb} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Pitched Roof EXT 2 | Cavity Filled Evidence */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Pitched roof EXT 2 SC (150mm)</div>
+                      <div className="px-1 py-1">
+                        <select name="pitched_roof_ext_2_sc_evidence_150mm" value={Array.isArray(formData.pitched_roof_ext_2_sc_evidence_150mm) ? formData.pitched_roof_ext_2_sc_evidence_150mm.join(", ") : (formData.pitched_roof_ext_2_sc_evidence_150mm || "")} onChange={(e) => handleArrayInput('pitched_roof_ext_2_sc_evidence_150mm', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Cavity Filled Evidence</div>
+                      <div className="px-1 py-1">
+                        <select name="cavity_filled_evidence" value={formData.cavity_filled_evidence} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Pitched Roof Main | Secondary Heating */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Pitched Roof Main (PICP)</div>
+                      <div className="px-1 py-1">
+                        <select name="pitched_roof_main" value={Array.isArray(formData.pitched_roof_main) ? formData.pitched_roof_main.join(", ") : (formData.pitched_roof_main || "")} onChange={(e) => handleArrayInput('pitched_roof_main', e.target.value)} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Secondary Heating Source</div>
+                      <div className="px-1 py-1">
+                        <select name="secondary_heating_source_evidence" value={formData.secondary_heating_source_evidence} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Checked and verified">Checked and verified</option>
+                          <option value="Photos Missing">Photos Missing</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row: Shower Type | High Value Note (full width textarea) */}
+                  <div className="grid grid-cols-2 border-b border-gray-200">
+                    <div className="grid grid-cols-2 border-r border-gray-200">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">Shower Types</div>
+                      <div className="px-1 py-1">
+                        <select name="shower_type" value={formData.shower_type} onChange={handleInputChange} className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white">
+                          <option value="">Select...</option>
+                          <option value="Electric">Electric</option>
+                          <option value="Non-Electric">Non-Electric</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-2 py-1.5 bg-gray-50 font-medium text-gray-600 border-r border-gray-200 flex items-center">High Value Note</div>
+                      <div className="px-1 py-1">
+                        <textarea name="high_value_notes" value={formData.high_value_notes} onChange={handleInputChange} rows="1" className="w-full px-1 py-0.5 text-xs border border-gray-300 rounded outline-none bg-white resize-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+
+                <div className="pt-4 border-t mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-tight">Add More Evidence (3A)</h3>
+                    <button type="button" onClick={addMoreEvidence3aGroup} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
+                      <Plus className="w-3 h-3" />
+                      Add Group
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(Array.isArray(formData.add_more_evidence_3a) ? formData.add_more_evidence_3a : []).map((group, gi) => {
+                      const colors = [
+                        "border-blue-400 bg-blue-50/30",
+                        "border-emerald-400 bg-emerald-50/30",
+                        "border-purple-400 bg-purple-50/30",
+                        "border-orange-400 bg-orange-50/30",
+                        "border-rose-400 bg-rose-50/30",
+                      ];
+                      const tableHeaders = [
+                        "bg-blue-600/10",
+                        "bg-emerald-600/10",
+                        "bg-purple-600/10",
+                        "bg-orange-600/10",
+                        "bg-rose-600/10",
+                      ];
+                      const colorClass = colors[gi % colors.length];
+                      const headerClass = tableHeaders[gi % tableHeaders.length];
+
+                      return (
+                        <div key={gi} className={`p-2 border rounded shadow-sm ${colorClass} transition-shadow`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                placeholder="Folder Name"
+                                value={group.main_folder || ""}
+                                onChange={(e) => updateMoreEvidence3aGroup(gi, 'main_folder', e.target.value)}
+                                className="block w-full px-2 py-1 text-xs font-bold bg-white/70 border-b border-gray-300 rounded outline-none"
+                              />
+                            </div>
+                            <button type="button" onClick={() => removeMoreEvidence3aGroup(gi)} className="ml-2 text-red-500 hover:text-red-700">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="bg-white rounded border border-gray-200 overflow-hidden shadow-sm">
+                            <table className="w-full text-[11px]">
+                              <thead className={`${headerClass} border-b`}>
+                                <tr>
+                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700">Name</th>
+                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700 w-36">Status</th>
+                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700">Issue</th>
+                                  <th className="px-2 py-1.5 text-center font-bold text-gray-700 w-10">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                                  <tr key={di} className="border-b last:border-0 hover:bg-gray-50/50">
+                                    <td className="px-2 py-1 border-r">
+                                      <input type="text" value={doc.name || ""} onChange={(e) => updateMoreEvidence3aRow(gi, di, 'name', e.target.value)} placeholder="Name..." className="w-full p-0 bg-transparent outline-none" />
+                                    </td>
+                                    <td className="px-2 py-1 border-r">
+                                      <select value={doc.status || ""} onChange={(e) => updateMoreEvidence3aRow(gi, di, 'status', e.target.value)} className="w-full p-0 bg-transparent outline-none text-[10px] font-semibold text-gray-700">
+                                        <option value="">Select...</option>
+                                        <option value="Done">Done</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Not Required">Not Required</option>
+                                      </select>
+                                    </td>
+                                    <td className="px-2 py-1 border-r">
+                                      <input value={doc.issue || ""} onChange={(e) => updateMoreEvidence3aRow(gi, di, 'issue', e.target.value)} placeholder="..." className="w-full p-0 bg-transparent outline-none" />
+                                    </td>
+                                    <td className="px-2 py-1 text-center">
+                                      <button type="button" onClick={() => removeMoreEvidence3aRow(gi, di)}>
+                                        <X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <button type="button" onClick={() => addMoreEvidence3aRow(gi)} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">
+                              + Add Row
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Step 3B: Add More Evidence */}
-            {currentStep === '3B' && (
+            {currentStep == '3B' && (
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-gray-800 mb-2">Add More Evidence (3B)</h3>
 
@@ -1539,10 +1856,279 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               </div>
             )}
 
-            {/* Step 4: Sheet / Trustmark / Tecnica */}
-            {currentStep === 4 && (
+            {/* Step 4: EPC & Numeric Metrics (Old Screen 4 - Unchanged position) */}
+            {currentStep == 4 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Sheet / Trustmark & Tecnica</h3>
+                <h3 className="text-sm font-semibold text-gray-800 mb-1">EPC &amp; Numeric Metrics</h3>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">Services Required</label>
+                  <div className="mt-1">
+                    {Array.isArray(formData.services) && formData.services.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {formData.services.map((s, i) => {
+                          const n = (s || "").toLowerCase();
+                          let icon = "⚙️";
+                          if (n.includes("ewi")) icon = "🏠";
+                          else if (n.includes("boiler")) icon = "🔧";
+                          else if (n.includes("heating") || n.includes("ftch") || n.includes("control")) icon = "🌡️";
+                          else if (n.includes("loft")) icon = "🛖";
+                          else if (n.includes("solar")) icon = "☀️";
+                          else if (n.includes("single")) icon = "🔹";
+
+                          return (
+                            <span key={i} className="inline-flex items-center px-1.5 py-0.5 text-[10px] bg-gray-100 rounded">
+                              <span className="mr-1 text-xs" aria-hidden>{icon}</span>
+                              <span>{s}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-gray-500">No services selected on the lead.</div>
+                    )}
+                  </div>
+
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">Start SAP</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="start_sap"
+                      value={formData.start_sap ?? ""}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, start_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700">End SAP</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="end_sap"
+                      value={formData.end_sap ?? ""}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, end_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">Number Metrics (1/2/3)</label>
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <input type="number" step="0.01" placeholder="N1" value={formData.number_metrics?.number1 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number1', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <input type="number" step="0.01" placeholder="N2" value={formData.number_metrics?.number2 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number2', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <input type="number" step="0.01" placeholder="N3" value={formData.number_metrics?.number3 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number3', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-700 border-b pb-0.5">EPC Metrics</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* epc_rating */}
+                    <div className="bg-gray-50/50 p-1 rounded">
+                      <div className="text-[10px] font-medium text-gray-600 mb-1">EPC Rating</div>
+                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.epc_rating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.epc_rating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.epc_rating?.difference ?? "0"}</div>
+                    </div>
+
+                    {/* epc_area */}
+                    <div className="bg-gray-50/50 p-1 rounded">
+                      <div className="text-[10px] font-medium text-gray-600 mb-1">EPC Area</div>
+                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.epc_area?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.epc_area?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.epc_area?.difference ?? "0"}</div>
+                    </div>
+
+                    {/* loft_insulation */}
+                    <div className="bg-gray-50/50 p-1 rounded">
+                      <div className="text-[10px] font-medium text-gray-600 mb-1">Loft Ins (mm)</div>
+                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.loft_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.loft_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.loft_insulation?.difference ?? "0"}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* secondary_heating */}
+                    <div className="bg-gray-50/50 p-1 rounded">
+                      <div className="text-[10px] font-medium text-gray-600 mb-1">Sec Heating</div>
+                      <input type="number" step="1" placeholder="Prev" value={formData.epc_metrics?.secondary_heating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="1" placeholder="Curr" value={formData.epc_metrics?.secondary_heating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                    </div>
+
+                    {/* cavity_wall_insulation */}
+                    <div className="bg-gray-50/50 p-1 rounded">
+                      <div className="text-[10px] font-medium text-gray-600 mb-1">Cavity Wall</div>
+                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.cavity_wall_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.cavity_wall_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                    </div>
+
+                    {/* loft_ext_1 */}
+                    <div className="bg-gray-50/50 p-1 rounded">
+                      <div className="text-[10px] font-medium text-gray-600 mb-1">Loft Ext 1</div>
+                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.loft_ext_1?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.loft_ext_1?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Property Age (P/C)</label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input type="text" placeholder="Prev" value={formData.epc_metrics?.property_age?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'previous', e.target.value, false)} className="px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                        <input type="text" placeholder="Curr" value={formData.epc_metrics?.property_age?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'current', e.target.value, false)} className="px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">High Value Notes</label>
+                      <textarea
+                        name="high_value_notes"
+                        value={formData.high_value_notes}
+                        onChange={handleInputChange}
+                        placeholder="..."
+                        className="block w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded"
+                        rows="1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Added Fields for Step 4 */}
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
+                  <div>
+                    <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Floor Area</label>
+                    <input type="text" name="floor_area" value={formData.floor_area ?? ""} onChange={handleInputChange} className="px-1.5 py-0.5 w-full text-[11px] border border-gray-300 rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-gray-600 mb-0.5">ABS</label>
+                    <input type="text" name="abs" value={formData.abs ?? ""} onChange={handleInputChange} className="px-1.5 py-0.5 w-full text-[11px] border border-gray-300 rounded" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Any Potential</label>
+                  <textarea name="any_potential" value={formData.any_potential ?? ""} onChange={handleInputChange} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded max-h-16" rows="2" />
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Additional checks</h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">ASHP suitable?</label>
+                      <select name="ashp_suitable" value={formData.additional_checks?.ashp_suitable ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'ashp_suitable', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded bg-white">
+                        <option value="">Select...</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Roof is good for Solar?</label>
+                      <select name="roof_is_good_for_solar" value={formData.additional_checks?.roof_is_good_for_solar ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'roof_is_good_for_solar', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded bg-white">
+                        <option value="">Select...</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Any Trees Nearby</label>
+                      <input type="text" name="any_trees_nearby" value={formData.additional_checks?.any_trees_nearby ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'any_trees_nearby', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Orientation</label>
+                      <input type="text" name="orientation" value={formData.additional_checks?.orientation ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'orientation', null, e.target.value, false)} placeholder="e.g. South" className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t mt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-tight">Add More Evidence (Screen 4)</h3>
+                    <button type="button" onClick={addMoreEvidence4Group} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
+                      <Plus className="w-3 h-3" />
+                      Add Group
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(Array.isArray(formData.add_more_evidence_for_screen_4) ? formData.add_more_evidence_for_screen_4 : []).map((group, gi) => {
+                      const colors = ["border-blue-400 bg-blue-50/30", "border-emerald-400 bg-emerald-50/30", "border-purple-400 bg-purple-50/30", "border-orange-400 bg-orange-50/30", "border-rose-400 bg-rose-50/30"];
+                      const tableHeaders = ["bg-blue-600/10", "bg-emerald-600/10", "bg-purple-600/10", "bg-orange-600/10", "bg-rose-600/10"];
+                      const colorClass = colors[gi % colors.length];
+                      const headerClass = tableHeaders[gi % tableHeaders.length];
+
+                      return (
+                        <div key={gi} className={`p-2 border rounded shadow-sm ${colorClass} transition-shadow`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                placeholder="Folder Name"
+                                value={group.main_folder || ""}
+                                onChange={(e) => updateMoreEvidence4Group(gi, 'main_folder', e.target.value)}
+                                className="block w-full px-2 py-1 text-xs font-bold bg-white/70 border-b border-gray-300 rounded outline-none"
+                              />
+                            </div>
+                            <button type="button" onClick={() => removeMoreEvidence4Group(gi)} className="ml-2 text-red-500 hover:text-red-700">
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="bg-white rounded border border-gray-200 overflow-hidden shadow-sm">
+                            <table className="w-full text-[11px]">
+                              <thead className={`${headerClass} border-b`}>
+                                <tr>
+                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700">Name</th>
+                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700 w-36">Status</th>
+                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700">Issue</th>
+                                  <th className="px-2 py-1.5 text-center font-bold text-gray-700 w-10">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                                  <tr key={di} className="border-b last:border-0 hover:bg-gray-50/50">
+                                    <td className="px-2 py-1 border-r">
+                                      <input type="text" value={doc.name || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'name', e.target.value)} placeholder="Name..." className="w-full p-0 bg-transparent outline-none" />
+                                    </td>
+                                    <td className="px-2 py-1 border-r">
+                                      <select value={doc.status || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'status', e.target.value)} className="w-full p-0 bg-transparent outline-none text-[10px] font-semibold text-gray-700">
+                                        <option value="">Select...</option>
+                                        <option value="Done">Done</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Not Required">Not Required</option>
+                                      </select>
+                                    </td>
+                                    <td className="px-2 py-1 border-r">
+                                      <input value={doc.issue || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'issue', e.target.value)} placeholder="..." className="w-full p-0 bg-transparent outline-none" />
+                                    </td>
+                                    <td className="px-2 py-1 text-center">
+                                      <button type="button" onClick={() => removeMoreEvidence4Row(gi, di)}>
+                                        <X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <button type="button" onClick={() => addMoreEvidence4Row(gi)} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">
+                              + Add Row
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 11: Sheet / Trustmark & Tecnica (Old Screen 5) */}
+            {currentStep == 11 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2">Sheet / Trustmark &amp; Tecnica</h3>
 
                 <div className="grid grid-cols-2 gap-2">
                   <label className="flex items-center space-x-2">
@@ -1579,7 +2165,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
 
                   <label className="flex items-center space-x-2">
                     <input type="checkbox" name="c2_packs_all_key_parts_and_stages" checked={formData.c2_packs_all_key_parts_and_stages} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">C2 Packs All Key Parts & Stages</span>
+                    <span className="text-sm">C2 Packs All Key Parts &amp; Stages</span>
                   </label>
                   <label className="flex items-center space-x-2">
                     <input type="checkbox" name="c3_packs_all_key_parts" checked={formData.c3_packs_all_key_parts} onChange={handleInputChange} className="w-4 h-4" />
@@ -1640,348 +2226,692 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
               </div>
             )}
 
-            {/* Step 5: EPC & Numeric Metrics */}
-            {currentStep === 5 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">EPC & Numeric Metrics</h3>
+            {/* Screen 7A: Pre Paperwork */}
+            {currentStep === '7A' && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Pre Paper Work</h3>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Services Required</label>
-                  <div className="mt-2">
-                    {Array.isArray(formData.services) && formData.services.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {formData.services.map((s, i) => {
-                          const n = (s || "").toLowerCase();
-                          let icon = "⚙️";
-                          if (n.includes("ewi")) icon = "🏠";
-                          else if (n.includes("boiler")) icon = "🔧";
-                          else if (n.includes("heating") || n.includes("ftch") || n.includes("control")) icon = "🌡️";
-                          else if (n.includes("loft")) icon = "🛖";
-                          else if (n.includes("solar")) icon = "☀️";
-                          else if (n.includes("single")) icon = "🔹";
-
-                          return (
-                            <span key={i} className="inline-flex items-center px-2 py-1 text-sm bg-gray-100 rounded">
-                              <span className="mr-2 text-md" aria-hidden>{icon}</span>
-                              <span>{s}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-500">No services selected on the lead.</div>
-                    )}
-                  </div>
-
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-gray-700">Proposed Measures (from Lead services)</label>
+                {/* Dropdown fields */}
+                {[
+                  {
+                    label: 'Ventilation Assessment File',
+                    key: 'ventilation_assessment_file',
+                    options: [
+                      { value: 'completed_checked_verified', label: 'Completed, Checked and Verified' },
+                      { value: 'pending', label: 'Pending' },
+                    ]
+                  },
+                  {
+                    label: 'Floor Plan Ready and Tested with Calculation',
+                    key: 'floor_plan',
+                    options: [
+                      { value: 'checked_and_verified', label: 'Checked and Verified' },
+                      { value: 'pending', label: 'Pending' },
+                    ]
+                  },
+                  {
+                    label: 'Assessment',
+                    key: 'assessment',
+                    options: [
+                      { value: 'prepared', label: 'Prepared' },
+                      { value: 'not_done', label: 'Not Done' },
+                      { value: 'text_only_updated', label: 'Text Only Updated' },
+                    ]
+                  },
+                  {
+                    label: 'Retrofit Design',
+                    key: 'retrofit_design',
+                    options: [
+                      { value: 'received_and_checked', label: 'Received and Checked' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'sent_out_for_designing', label: 'Sent Out for Designing' },
+                    ]
+                  },
+                  {
+                    label: 'Solar/ASHP Design',
+                    key: 'solar_ashp_design',
+                    options: [
+                      { value: 'received_and_checked', label: 'Received and Checked' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'sent_out_for_designing', label: 'Sent Out for Designing' },
+                    ]
+                  },
+                  {
+                    label: 'Customer Quotes',
+                    key: 'customer_quotes',
+                    options: [
+                      { value: 'sent_to_customer', label: 'Sent to Customer' },
+                      { value: 'not_sent', label: 'Not Sent' },
+                    ]
+                  },
+                ].map(({ label, key, options }) => (
+                  <div key={key}>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
                     <select
-                      name="services"
-                      value={Array.isArray(formData.services) ? formData.services.join(", ") : (formData.services || "")}
-                      onChange={(e) => handleArrayInput("services", e.target.value)}
-                      onBlur={saveProposedMeasures}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                      value={formData.pre_paperwork_7a?.[key] || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        pre_paperwork_7a: { ...prev.pre_paperwork_7a, [key]: e.target.value }
+                      }))}
+                      className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
                     >
                       <option value="">Select...</option>
-                      <option value="Required">Required</option>
-                      <option value="Not Available">Not Available</option>
+                      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Edit and click outside the field to save services to the lead.</p>
                   </div>
-                </div>
+                ))}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Start SAP</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="start_sap"
-                      value={formData.start_sap ?? ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, start_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
+                {/* Add More Evidence - similar to screen 3B */}
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        pre_paperwork_7a: {
+                          ...prev.pre_paperwork_7a,
+                          add_more_evidence: [
+                            ...(prev.pre_paperwork_7a?.add_more_evidence || []),
+                            { main_folder: '', documents: [] }
+                          ]
+                        }
+                      }))}
+                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      + Add Group
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">End SAP</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="end_sap"
-                      value={formData.end_sap ?? ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, end_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Number Metrics (Number1/2/3)</label>
-                  <div className="grid grid-cols-3 gap-4 mt-2">
-                    <input type="number" step="0.01" placeholder="Number1" value={formData.number_metrics?.number1 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number1', null, e.target.value, true)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    <input type="number" step="0.01" placeholder="Number2" value={formData.number_metrics?.number2 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number2', null, e.target.value, true)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    <input type="number" step="0.01" placeholder="Number3" value={formData.number_metrics?.number3 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number3', null, e.target.value, true)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">EPC Metrics</label>
-                  <div className="grid grid-cols-3 gap-4">
-                    {/* epc_rating */}
-                    <div>
-                      <div className="text-sm font-medium">EPC Rating</div>
-                      <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.epc_rating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'previous', e.target.value, true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.epc_rating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'current', e.target.value, true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.epc_rating?.difference ?? ""}</div>
+                  {(formData.pre_paperwork_7a?.add_more_evidence || []).map((group, gi) => (
+                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <input
+                          type="text"
+                          placeholder="Folder name..."
+                          value={group.main_folder || ''}
+                          onChange={(e) => setFormData(prev => {
+                            const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
+                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                            return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
+                          })}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => {
+                            const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
+                            arr.splice(gi, 1);
+                            return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
+                          })}
+                          className="text-red-500 hover:text-red-700 ml-1"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <table className="w-full text-[10px] border border-gray-200 rounded">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-2 py-1 text-left border-r">Name</th>
+                            <th className="px-2 py-1 text-left border-r">Status</th>
+                            <th className="px-2 py-1 text-left border-r">Issue</th>
+                            <th className="px-2 py-1 text-center w-6"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(group.documents || []).map((doc, di) => (
+                            <tr key={di} className="border-t border-gray-100">
+                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => {
+                          const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
+                          const g = { ...arr[gi] };
+                          g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }];
+                          arr[gi] = g;
+                          return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
+                        })}
+                        className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100"
+                      >
+                        + Add Row
+                      </button>
                     </div>
-
-                    {/* epc_area */}
-                    <div>
-                      <div className="text-sm font-medium">EPC Area</div>
-                      <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.epc_area?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'previous', e.target.value, true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.epc_area?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'current', e.target.value, true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.epc_area?.difference ?? ""}</div>
-                    </div>
-
-                    {/* loft_insulation */}
-                    <div>
-                      <div className="text-sm font-medium">Loft Insulation (mm)</div>
-                      <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.loft_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'previous', e.target.value, true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.loft_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'current', e.target.value, true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.loft_insulation?.difference ?? ""}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    {/* secondary_heating */}
-                    <div>
-                      <div className="text-sm font-medium">Secondary Heating (prev/current)</div>
-                      <input type="number" step="1" placeholder="Previous" value={formData.epc_metrics?.secondary_heating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'previous', e.target.value, true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="number" step="1" placeholder="Current" value={formData.epc_metrics?.secondary_heating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'current', e.target.value, true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.secondary_heating?.difference ?? ""}</div>
-                    </div>
-
-                    {/* cavity_wall_insulation */}
-                    <div>
-                      <div className="text-sm font-medium">Cavity Wall Insulation</div>
-                      <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.cavity_wall_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'previous', e.target.value, true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.cavity_wall_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'current', e.target.value, true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.cavity_wall_insulation?.difference ?? ""}</div>
-                    </div>
-
-                    {/* loft_ext_1 */}
-                    <div>
-                      <div className="text-sm font-medium">Loft Ext 1</div>
-                      <input type="number" step="0.01" placeholder="Previous" value={formData.epc_metrics?.loft_ext_1?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'previous', e.target.value, true)} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="number" step="0.01" placeholder="Current" value={formData.epc_metrics?.loft_ext_1?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'current', e.target.value, true)} className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-                      <div className="mt-1 text-sm text-gray-600">Difference: {formData.epc_metrics?.loft_ext_1?.difference ?? ""}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="text-sm font-medium">Property Age (previous/current)</div>
-                    <div className="grid grid-cols-2 gap-4 mt-2">
-                      <input type="text" placeholder="Previous" value={formData.epc_metrics?.property_age?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'previous', e.target.value, false)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                      <input type="text" placeholder="Current" value={formData.epc_metrics?.property_age?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'current', e.target.value, false)} className="px-3 py-2 border border-gray-300 rounded-md" />
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700">High Value Notes</label>
-                    {/* <select name="high_value_notes" value={formData.high_value_notes ?? ""} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                      <option value="">Select...</option>
-                      <option value="Required">Required</option>
-                      <option value="Not Available">Not Available</option>
-                    </select> */}
-
-                    <textarea
-                      name="high_value_notes"
-                      value={formData.high_value_notes}
-                      onChange={handleInputChange}
-                      placeholder="Any additional information"
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                      rows="3"
-                    />
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Step 6: Floor Details & Totals */}
-            {currentStep === 6 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Floor Details & Totals</h3>
+            {/* Screen 7B: Material */}
+            {currentStep === '7B' && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Material</h3>
 
-                <div className="space-y-2">
+                {/* Material rows: status yes/no + date */}
+                {[
+                  { label: 'Solar', key: 'solar' },
+                  { label: 'ASHP', key: 'ashp' },
+                  { label: 'Boiler and HC', key: 'boiler_hc' },
+                  { label: 'Loft', key: 'loft' },
+                  { label: 'Scaffolding Order', key: 'scaffolding_order' },
+                ].map(({ label, key }) => (
+                  <div key={key} className="grid grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+                      <p className="text-[10px] text-gray-400">Status</p>
+                      <select
+                        value={formData.material_7b?.[key]?.status || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          material_7b: {
+                            ...prev.material_7b,
+                            [key]: { ...(prev.material_7b?.[key] || {}), status: e.target.value }
+                          }
+                        }))}
+                        className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
+                      >
+                        <option value="">Select...</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-[10px] text-gray-400">Date Order</p>
+                      <input
+                        type="date"
+                        value={formData.material_7b?.[key]?.date_order || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          material_7b: {
+                            ...prev.material_7b,
+                            [key]: { ...(prev.material_7b?.[key] || {}), date_order: e.target.value }
+                          }
+                        }))}
+                        className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Scaffolding Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Scaffolding Date</label>
+                  <input
+                    type="text"
+                    value={formData.material_7b?.scaffolding_date || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      material_7b: { ...prev.material_7b, scaffolding_date: e.target.value }
+                    }))}
+                    placeholder="Enter scaffolding date..."
+                    className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                {/* Add More Evidence for 7B */}
+                <div className="mt-4 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        material_7b: {
+                          ...prev.material_7b,
+                          add_more_evidence: [
+                            ...(prev.material_7b?.add_more_evidence || []),
+                            { main_folder: '', documents: [] }
+                          ]
+                        }
+                      }))}
+                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      + Add Group
+                    </button>
+                  </div>
+                  {(formData.material_7b?.add_more_evidence || []).map((group, gi) => (
+                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <input
+                          type="text"
+                          placeholder="Folder name..."
+                          value={group.main_folder || ''}
+                          onChange={(e) => setFormData(prev => {
+                            const arr = [...(prev.material_7b?.add_more_evidence || [])];
+                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                            return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
+                          })}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => {
+                            const arr = [...(prev.material_7b?.add_more_evidence || [])];
+                            arr.splice(gi, 1);
+                            return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
+                          })}
+                          className="text-red-500 hover:text-red-700 ml-1"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <table className="w-full text-[10px] border border-gray-200 rounded">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-2 py-1 text-left border-r">Name</th>
+                            <th className="px-2 py-1 text-left border-r">Status</th>
+                            <th className="px-2 py-1 text-left border-r">Issue</th>
+                            <th className="px-2 py-1 text-center w-6"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(group.documents || []).map((doc, di) => (
+                            <tr key={di} className="border-t border-gray-100">
+                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => {
+                          const arr = [...(prev.material_7b?.add_more_evidence || [])];
+                          const g = { ...arr[gi] };
+                          g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }];
+                          arr[gi] = g;
+                          return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
+                        })}
+                        className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100"
+                      >
+                        + Add Row
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Screen 8: Installation Requirements */}
+            {currentStep === 8 && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1 border-b border-gray-200 pb-2">Installation Requirements</h3>
+                  <p className="text-[11px] text-gray-500 mb-3">Include all C2 packs requirement, based in measure</p>
+                </div>
+
+                {/* Notes / text field */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    value={formData.installation_requirements_8?.notes || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      installation_requirements_8: { ...prev.installation_requirements_8, notes: e.target.value }
+                    }))}
+                    rows={4}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y"
+                    placeholder="Enter installation requirements notes..."
+                  />
+                </div>
+
+                {/* Add More Evidence */}
+                <div className="mt-2 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        installation_requirements_8: {
+                          ...prev.installation_requirements_8,
+                          add_more_evidence: [
+                            ...(prev.installation_requirements_8?.add_more_evidence || []),
+                            { main_folder: '', documents: [] }
+                          ]
+                        }
+                      }))}
+                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      + Add Group
+                    </button>
+                  </div>
+                  {(formData.installation_requirements_8?.add_more_evidence || []).map((group, gi) => (
+                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <input
+                          type="text"
+                          placeholder="Folder name..."
+                          value={group.main_folder || ''}
+                          onChange={(e) => setFormData(prev => {
+                            const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])];
+                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                            return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } };
+                          })}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                        />
+                        <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; arr.splice(gi, 1); return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="text-red-500 hover:text-red-700 ml-1"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <table className="w-full text-[10px] border border-gray-200 rounded">
+                        <thead className="bg-gray-100"><tr><th className="px-2 py-1 text-left border-r">Name</th><th className="px-2 py-1 text-left border-r">Status</th><th className="px-2 py-1 text-left border-r">Issue</th><th className="px-2 py-1 text-center w-6"></th></tr></thead>
+                        <tbody>
+                          {(group.documents || []).map((doc, di) => (
+                            <tr key={di} className="border-t border-gray-100">
+                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }]; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">+ Add Row</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Screen 9: Internal C3 Requirements */}
+            {currentStep === 9 && (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1 border-b border-gray-200 pb-2">Internal C3 Requirements</h3>
+                  <p className="text-[11px] text-gray-500 mb-3">Include all C3 packs requirement, based in measure</p>
+                </div>
+
+                {/* Notes / text field */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    value={formData.internal_c3_requirements_9?.notes || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, notes: e.target.value }
+                    }))}
+                    rows={4}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y"
+                    placeholder="Enter internal C3 requirements notes..."
+                  />
+                </div>
+
+                {/* Add More Evidence */}
+                <div className="mt-2 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        internal_c3_requirements_9: {
+                          ...prev.internal_c3_requirements_9,
+                          add_more_evidence: [
+                            ...(prev.internal_c3_requirements_9?.add_more_evidence || []),
+                            { main_folder: '', documents: [] }
+                          ]
+                        }
+                      }))}
+                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      + Add Group
+                    </button>
+                  </div>
+                  {(formData.internal_c3_requirements_9?.add_more_evidence || []).map((group, gi) => (
+                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                      <div className="flex justify-between items-center mb-1">
+                        <input
+                          type="text"
+                          placeholder="Folder name..."
+                          value={group.main_folder || ''}
+                          onChange={(e) => setFormData(prev => {
+                            const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])];
+                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                            return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } };
+                          })}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                        />
+                        <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; arr.splice(gi, 1); return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })} className="text-red-500 hover:text-red-700 ml-1"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <table className="w-full text-[10px] border border-gray-200 rounded">
+                        <thead className="bg-gray-100"><tr><th className="px-2 py-1 text-left border-r">Name</th><th className="px-2 py-1 text-left border-r">Status</th><th className="px-2 py-1 text-left border-r">Issue</th><th className="px-2 py-1 text-center w-6"></th></tr></thead>
+                        <tbody>
+                          {(group.documents || []).map((doc, di) => (
+                            <tr key={di} className="border-t border-gray-100">
+                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; const g = { ...arr[gi] }; g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }]; arr[gi] = g; return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">+ Add Row</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Floor Details & Totals (Old Screen 6) */}
+            {currentStep == 5 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-800 mb-1">Floor Details & Totals</h3>
+
+                <div className="space-y-1">
                   {(Array.isArray(formData.floor_details) ? formData.floor_details : []).map((row, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2 items-end">
+                    <div key={idx} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
                       <div className="col-span-3">
-                        <label className="block text-sm font-medium">Name</label>
-                        <input value={row.name || ""} onChange={(e) => updateFloorRow(idx, 'name', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" readOnly={idx < FIXED_FLOOR_NAMES.length} />
+                        <label className="block text-[10px] font-medium text-gray-500">Name</label>
+                        <input value={row.name || ""} onChange={(e) => updateFloorRow(idx, 'name', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" readOnly={idx < FIXED_FLOOR_NAMES.length} />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium">Area</label>
-                        <input type="number" step="0.01" value={row.area ?? ""} onChange={(e) => updateFloorRow(idx, 'area', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                        <label className="block text-[10px] font-medium text-gray-500">Area</label>
+                        <input type="number" step="0.01" value={row.area ?? ""} onChange={(e) => updateFloorRow(idx, 'area', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium">Height</label>
-                        <input type="number" step="0.01" value={row.height ?? ""} onChange={(e) => updateFloorRow(idx, 'height', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                        <label className="block text-[10px] font-medium text-gray-500">Height</label>
+                        <input type="number" step="0.01" value={row.height ?? ""} onChange={(e) => updateFloorRow(idx, 'height', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                       </div>
                       <div className="col-span-1">
-                        <label className="block text-sm font-medium">HLP</label>
-                        <input type="number" step="0.01" value={row.hlp ?? ""} onChange={(e) => updateFloorRow(idx, 'hlp', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                        <label className="block text-[10px] font-medium text-gray-500">HLP</label>
+                        <input type="number" step="0.01" value={row.hlp ?? ""} onChange={(e) => updateFloorRow(idx, 'hlp', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                       </div>
                       <div className="col-span-1">
-                        <label className="block text-sm font-medium">PW</label>
-                        <input type="number" step="0.01" value={row.pw ?? ""} onChange={(e) => updateFloorRow(idx, 'pw', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                        <label className="block text-[10px] font-medium text-gray-500">PW</label>
+                        <input type="number" step="0.01" value={row.pw ?? ""} onChange={(e) => updateFloorRow(idx, 'pw', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                       </div>
                       <div className="col-span-2">
-                        <label className="block text-sm font-medium">Notes</label>
-                        <input value={row.notes || ""} onChange={(e) => updateFloorRow(idx, 'notes', e.target.value)} className="mt-1 block w-full px-2 py-1 border rounded" />
+                        <label className="block text-[10px] font-medium text-gray-500">Notes</label>
+                        <input value={row.notes || ""} onChange={(e) => updateFloorRow(idx, 'notes', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                       </div>
-                      <div className="col-span-12 text-right">
+                      <div className="col-span-1 flex items-center justify-center">
                         {idx >= FIXED_FLOOR_NAMES.length ? (
-                          <button type="button" onClick={() => { setFormData(prev => { const arr = [...(prev.floor_details || [])]; arr.splice(idx, 1); return { ...prev, floor_details: arr }; }); setTimeout(recalcFloorTotals, 0); }} className="text-sm text-red-600">Remove</button>
+                          <button type="button" onClick={() => { setFormData(prev => { const arr = [...(prev.floor_details || [])]; arr.splice(idx, 1); return { ...prev, floor_details: arr }; }); setTimeout(recalcFloorTotals, 0); }} className="text-[10px] text-red-600 p-0.5 hover:bg-red-50 rounded">✕</button>
                         ) : null}
                       </div>
                     </div>
                   ))}
 
-                  <div>
-                    <button type="button" onClick={addFloorRow} className="px-3 py-1 bg-gray-200 rounded">Add Row</button>
+                  <div className="pt-1">
+                    <button type="button" onClick={addFloorRow} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Row</button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-3 gap-2 mt-2 bg-blue-50/30 p-1.5 rounded border border-blue-100">
                   <div>
-                    <label className="block text-sm font-medium">Total EPC Area</label>
-                    <input readOnly value={formData.total_epc_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                    <label className="block text-[10px] font-medium text-blue-800">Total EPC Area</label>
+                    <input readOnly value={formData.total_epc_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium">Total Floor Area (Excl RIR)</label>
-                    <input readOnly value={formData.total_floor_area_excluding_rir ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                    <label className="block text-[10px] font-medium text-blue-800">Floor Area (ExRIR)</label>
+                    <input readOnly value={formData.total_floor_area_excluding_rir ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium">Total Ground Floor Area</label>
-                    <input readOnly value={formData.total_ground_floor_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium">Highest Floor Area</label>
-                    <input readOnly value={formData.highest_floor_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium">Total HLP</label>
-                    <input readOnly value={formData.total_hlp ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium">Heat Demand Total Wall Area</label>
-                    <input readOnly value={formData.heat_demand_total_wall_area ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                    <label className="block text-[10px] font-medium text-blue-800">Ground Floor Area</label>
+                    <input readOnly value={formData.total_ground_floor_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
                   </div>
                 </div>
 
-                {/* New: Loft Details & Totals (requested) */}
-                <div className="mt-6">
-                  <h4 className="text-md font-semibold mb-2">Loft Details</h4>
-                  <div className="space-y-2">
+                <div className="grid grid-cols-3 gap-2 mt-1 bg-blue-50/30 p-1.5 rounded border border-blue-100">
+                  <div>
+                    <label className="block text-[10px] font-medium text-blue-800">Highest Floor</label>
+                    <input readOnly value={formData.highest_floor_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-blue-800">Total HLP</label>
+                    <input readOnly value={formData.total_hlp ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-blue-800">Wall Area (Demand)</label>
+                    <input readOnly value={formData.heat_demand_total_wall_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t">
+                  <h4 className="text-[11px] font-semibold text-gray-700 mb-1.5">Loft Details</h4>
+                  <div className="space-y-1">
                     {(Array.isArray(formData.loft_details) ? formData.loft_details : []).map((r, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                        <div className="col-span-6">
-                          <label className="block text-sm font-medium">Name</label>
-                          <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, loft_details: arr }; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
-                        </div>
-                        <div className="col-span-3">
-                          <label className="block text-sm font-medium">Area</label>
-                          <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, loft_details: arr }; }); setTimeout(recalcLoftTotals, 0); }} className="mt-1 block w-full px-2 py-1 border rounded" />
-                        </div>
-                        <div className="col-span-3">
-                          <label className="block text-sm font-medium">Type</label>
-                          <input value={r.type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), type: v }; return { ...prev, loft_details: arr }; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
-                        </div>
-                      </div>
-                    ))}
-                    <div>
-                      <button type="button" onClick={() => { setFormData(prev => ({ ...prev, loft_details: [...(prev.loft_details || []), { name: "", area: null, type: "" }] })); setTimeout(recalcLoftTotals, 0); }} className="px-3 py-1 bg-gray-200 rounded">Add Loft Row</button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium">Total Loft</label>
-                      <input readOnly value={formData.total_loft ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium">B/A</label>
-                      <input readOnly value={formData.ba ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium">POPT (editable)</label>
-                      <input type="number" step="0.01" value={formData.popt ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, popt: e.target.value === "" ? null : parseFloat(e.target.value) }))} className="mt-1 block w-full px-3 py-2 border rounded" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* New: Wall extension details and totals */}
-                <div className="mt-6">
-                  <h4 className="text-md font-semibold mb-2">Wall Extension Details</h4>
-                  <div className="space-y-2">
-                    {(Array.isArray(formData.wall_ext_details) ? formData.wall_ext_details : []).map((r, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-2 items-end">
+                      <div key={i} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
                         <div className="col-span-5">
-                          <label className="block text-sm font-medium">Name</label>
-                          <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, wall_ext_details: arr }; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                          <label className="block text-[10px] font-medium text-gray-500">Name</label>
+                          <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, loft_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                         </div>
                         <div className="col-span-3">
-                          <label className="block text-sm font-medium">Area</label>
-                          <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, wall_ext_details: arr }; }); setTimeout(recalcWallTotals, 0); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                          <label className="block text-[10px] font-medium text-gray-500">Area</label>
+                          <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, loft_details: arr }; }); setTimeout(recalcLoftTotals, 0); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                         </div>
                         <div className="col-span-4">
-                          <label className="block text-sm font-medium">Construction Type</label>
-                          <input value={r.construction_type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), construction_type: v }; return { ...prev, wall_ext_details: arr }; }); }} className="mt-1 block w-full px-2 py-1 border rounded" />
+                          <label className="block text-[10px] font-medium text-gray-500">Type</label>
+                          <input value={r.type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), type: v }; return { ...prev, loft_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
                         </div>
                       </div>
                     ))}
                     <div>
-                      <button type="button" onClick={() => { setFormData(prev => ({ ...prev, wall_ext_details: [...(prev.wall_ext_details || []), { name: "", area: null, construction_type: "" }] })); setTimeout(recalcWallTotals, 0); }} className="px-3 py-1 bg-gray-200 rounded">Add Wall Ext Row</button>
+                      <button type="button" onClick={() => { setFormData(prev => ({ ...prev, loft_details: [...(prev.loft_details || []), { name: "", area: null, type: "" }] })); setTimeout(recalcLoftTotals, 0); }} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Loft Row</button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium">Solid Wall Area</label>
-                      <input type="number" step="0.01" value={formData.solid_wall_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, solid_wall_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-1 block w-full px-3 py-2 border rounded" />
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    <div className="bg-emerald-50/30 p-1 rounded border border-emerald-100">
+                      <label className="block text-[10px] font-medium text-emerald-800">Total Loft</label>
+                      <input readOnly value={formData.total_loft ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-emerald-200 rounded bg-white font-bold" />
+                    </div>
+                    <div className="bg-emerald-50/30 p-1 rounded border border-emerald-100">
+                      <label className="block text-[10px] font-medium text-emerald-800">B/A</label>
+                      <input readOnly value={formData.ba ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-emerald-200 rounded bg-white font-bold" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium">Glazed Area</label>
-                      <input type="number" step="0.01" value={formData.glazed_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, glazed_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-1 block w-full px-3 py-2 border rounded" />
+                      <label className="block text-[10px] font-medium text-gray-600">POPT (edit)</label>
+                      <input type="number" step="0.01" value={formData.popt ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, popt: e.target.value === "" ? null : parseFloat(e.target.value) }))} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t">
+                  <h4 className="text-[11px] font-semibold text-gray-700 mb-1.5">Wall Extension Details</h4>
+                  <div className="space-y-1">
+                    {(Array.isArray(formData.wall_ext_details) ? formData.wall_ext_details : []).map((r, i) => (
+                      <div key={i} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
+                        <div className="col-span-4">
+                          <label className="block text-[10px] font-medium text-gray-500">Name</label>
+                          <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, wall_ext_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-3">
+                          <label className="block text-[10px] font-medium text-gray-500">Area</label>
+                          <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, wall_ext_details: arr }; }); setTimeout(recalcWallTotals, 0); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-5">
+                          <label className="block text-[10px] font-medium text-gray-500">Construction</label>
+                          <input value={r.construction_type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), construction_type: v }; return { ...prev, wall_ext_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                      </div>
+                    ))}
                     <div>
-                      <label className="block text-sm font-medium">Wall Excluding Windows PICI</label>
-                      <input readOnly value={formData.wall_excluding_windows_pici ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                      <button type="button" onClick={() => { setFormData(prev => ({ ...prev, wall_ext_details: [...(prev.wall_ext_details || []), { name: "", area: null, construction_type: "" }] })); setTimeout(recalcWallTotals, 0); }} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Wall Row</button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium">Total Wall PICI</label>
-                      <input readOnly value={formData.total_wall_pici ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                      <label className="block text-[10px] font-medium text-amber-800">Solid Wall Area</label>
+                      <input type="number" step="0.01" value={formData.solid_wall_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, solid_wall_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium">(spare)</label>
-                      <input readOnly value={""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                      <label className="block text-[10px] font-medium text-amber-800">Glazed Area</label>
+                      <input type="number" step="0.01" value={formData.glazed_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, glazed_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium">POPT (mirror)</label>
-                      <input readOnly value={formData.popt ?? ""} className="mt-1 block w-full px-3 py-2 border rounded bg-gray-50" />
+                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                      <label className="block text-[10px] font-medium text-amber-800">Wall Exc Win PICI</label>
+                      <input readOnly value={formData.wall_excluding_windows_pici ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white font-bold" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 mt-1">
+                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                      <label className="block text-[10px] font-medium text-amber-800">Total Wall PICI</label>
+                      <input readOnly value={formData.total_wall_pici ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white font-bold" />
+                    </div>
+                    <div className="bg-gray-100 p-1 rounded border border-gray-200 opacity-50">
+                      <label className="block text-[10px] font-medium text-gray-400">(spare)</label>
+                      <input readOnly value={""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white" />
+                    </div>
+                    <div className="bg-gray-100 p-1 rounded border border-gray-200">
+                      <label className="block text-[10px] font-medium text-gray-600">POPT (mirror)</label>
+                      <input readOnly value={formData.popt ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white" />
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Step 7: Documents */}
-            {currentStep === 7 && (
+            {/* Step 6: Installation Approval & Notes */}
+            {currentStep == 6 && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Installation Approval</h3>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleNestedInput('installation_approval', 'status', null, 'Approve for Installation', false)}
+                    className={`py-2 px-4 rounded text-sm font-semibold transition-colors ${formData.installation_approval?.status === 'Approve for Installation'
+                      ? 'bg-green-600 text-white shadow-inner border border-green-700'
+                      : 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-300'
+                      }`}
+                  >
+                    Approve for Installation
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNestedInput('installation_approval', 'status', null, 'Request More information', false)}
+                    className={`py-2 px-4 rounded text-sm font-semibold transition-colors ${formData.installation_approval?.status === 'Request More information'
+                      ? 'bg-yellow-500 text-white shadow-inner border border-yellow-600'
+                      : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300'
+                      }`}
+                  >
+                    Request More information
+                  </button>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Notes for this Stage</label>
+                  <textarea
+                    value={formData.installation_approval?.notes || ""}
+                    onChange={(e) => handleNestedInput('installation_approval', 'notes', null, e.target.value, false)}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y min-h-[80px]"
+                    placeholder="Enter notes here..."
+                  />
+                </div>
+              </div>
+            )}
+
+
+            {/* Step 10: Documents (Old Screen 7) */}
+            {currentStep == 10 && (
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-gray-800 mb-2">Documents</h3>
 
