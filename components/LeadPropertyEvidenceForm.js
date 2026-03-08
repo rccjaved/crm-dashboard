@@ -149,12 +149,12 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const { userInfo, modules } = useSelector((state) => state.auth);
 
   const availableSteps = useMemo(() => {
-    if (!userInfo) return [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
-    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
+    if (!userInfo) return [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, '11A', '11B'];
+    if (userInfo.is_admin || userInfo.role === 'admin') return [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, '11A', '11B'];
 
     const enabledKeys = (modules || []).filter(m => m.is_enabled).map(m => m.module_key);
     const steps = [];
-    const stepLabels = [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
+    const stepLabels = [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, '11A', '11B'];
 
     // Logic for permissions based on old screen numbers or updated ones?
     // User didn't specify backend changes, so I'll keep the loop but map to the new available list.
@@ -166,13 +166,15 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
         if (enabledKeys.includes(`lead_form_screen_3`)) steps.push('3A', '3B');
       } else if (i === 7) {
         if (enabledKeys.includes(`lead_form_screen_7`)) steps.push('7A', '7B');
+      } else if (i === 11) {
+        if (enabledKeys.includes(`lead_form_screen_11`)) steps.push('11A', '11B');
       } else {
         if (enabledKeys.includes(`lead_form_screen_${i}`)) steps.push(i);
       }
     }
     // If no steps returned from modules (e.g. they only had 1-7), but we have 11 now, 
     // we might need to adjust or just default to the full list for now if admin.
-    return steps.length > 0 ? steps : [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, 11];
+    return steps.length > 0 ? steps : [1, 2, '3A', '3B', 4, 5, 6, '7A', '7B', 8, 9, 10, '11A', '11B'];
   }, [userInfo, modules]);
 
   const [updatePropertyEvidence, { isLoading: isUpdatingEvidence }] = useUpdatePropertyEvidenceMutation();
@@ -260,21 +262,29 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
     shower_type: "",
     notes: "",
     // New sheet / trustmark / tecnica fields (step 4)
-    epr_check_matching: false,
-    installation_changes: false,
-    pas10_changes_before_submit: false,
+    epr_check_matching: "",
+    installation_changes: "",
+    pas10_changes_before_submit: "",
+    pas10_changes_notes: "",
 
-    updating_master_sheets: false,
+    updating_master_sheets: "",
     master_sheet_giant_source: "",
 
-    update_tecnica_order_sheet: false,
-    c3_issues_found_internal: false,
+    update_tecnica_order_sheet: "",
+    c3_issues_found_internal: "",
 
     c2_packs_all_key_parts_and_stages: false,
     c3_packs_all_key_parts: false,
 
     queries: "",
-    queries_status: false,
+    queries_status: "",
+    submission_status: "",
+    scaffolding_removed_status: "",
+    rubbish_collected_status: "",
+    customer_feedback_notes: "",
+    complete_the_project: "",
+    final_comments: "",
+    final_notes: "",
 
     trustmark: "",
     lodgement: "",
@@ -877,9 +887,10 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       case 10:
         // Old Screen 7
         return { isLeadScreen: false, evidenceFields: ['documents'] };
-      case 11:
-        // Old Screen 5
-        return { isLeadScreen: false, evidenceFields: ['epr_check_matching', 'installation_changes', 'pas10_changes_before_submit', 'updating_master_sheets', 'master_sheet_giant_source', 'update_tecnica_order_sheet', 'c3_issues_found_internal', 'c2_packs_all_key_parts_and_stages', 'c3_packs_all_key_parts', 'queries', 'queries_status', 'trustmark', 'lodgement', 'trustmark_project_certificate', 'project_stage1_trustmark_project_certificate', 'tecnica', 'scaffolding_removed_date', 'rubbish_collected_date'] };
+      case '11A':
+        return { isLeadScreen: false, evidenceFields: ['epr_check_matching', 'installation_changes', 'pas10_changes_before_submit', 'pas10_changes_notes', 'updating_master_sheets', 'master_sheet_giant_source', 'update_tecnica_order_sheet', 'c3_issues_found_internal', 'c2_packs_all_key_parts_and_stages', 'c3_packs_all_key_parts'] };
+      case '11B':
+        return { isLeadScreen: false, evidenceFields: ['submission_status', 'queries', 'queries_status', 'trustmark', 'lodgement', 'trustmark_project_certificate', 'project_stage1_trustmark_project_certificate', 'tecnica', 'scaffolding_removed_status', 'scaffolding_removed_date', 'rubbish_collected_status', 'rubbish_collected_date', 'customer_feedback_notes', 'complete_the_project', 'final_comments', 'final_notes'] };
 
       default:
         return { isLeadScreen: false, evidenceFields: [] };
@@ -2149,10 +2160,10 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     <span className="text-sm">Updating Master Sheets</span>
                   </label>
 
-                  <div>
+                  {/* <div>
                     <label className="block text-xs font-medium text-gray-600">Master Sheet Giant Source</label>
                     <input type="url" name="master_sheet_giant_source" value={formData.master_sheet_giant_source} onChange={handleInputChange} placeholder="https://..." className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
+                  </div> */}
 
                   <label className="flex items-center space-x-2">
                     <input type="checkbox" name="update_tecnica_order_sheet" checked={formData.update_tecnica_order_sheet} onChange={handleInputChange} className="w-4 h-4" />
@@ -3045,6 +3056,312 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                     <button type="button" onClick={addDocumentGroup} className="px-3 py-1 bg-gray-200 rounded">Add Document Group</button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Screen 11A */}
+            {currentStep === '11A' && (
+              <div className="space-y-0 border border-gray-200 rounded overflow-hidden">
+                <table className="w-full text-xs border-collapse">
+                  <tbody>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700 w-1/2">EPR Check matching with everything one last time</td>
+                      <td className="p-2">
+                        <select
+                          name="epr_check_matching"
+                          value={formData.epr_check_matching || ""}
+                          onChange={handleInputChange}
+                          className={`w-full px-2 py-1 rounded border outline-none ${formData.epr_check_matching === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.epr_check_matching === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="Checked and Verified">Checked and Verified</option>
+                          <option value="Issues to resolve before submission">Issues to resolve before submission</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-2 font-semibold text-gray-700">Installation Changes</td>
+                      <td className="p-2">
+                        <select
+                          name="installation_changes"
+                          value={formData.installation_changes || ""}
+                          onChange={handleInputChange}
+                          className={`w-full px-2 py-1 rounded border outline-none ${formData.installation_changes === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.installation_changes === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="Checked and Verified">Checked and Verified</option>
+                          <option value="Issues to resolve before submission">Issues to resolve before submission</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700">Pas 10 Changes any before final submit</td>
+                      <td className="p-2 flex gap-2">
+                        <select
+                          name="pas10_changes_before_submit"
+                          value={formData.pas10_changes_before_submit || ""}
+                          onChange={handleInputChange}
+                          className={`flex-1 px-2 py-1 rounded border outline-none ${formData.pas10_changes_before_submit === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.pas10_changes_before_submit === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="Checked and Verified">Checked and Verified</option>
+                          <option value="Issues to resolve before submission">Issues to resolve before submission</option>
+                        </select>
+                        <input
+                          type="text"
+                          name="pas10_changes_notes"
+                          value={formData.pas10_changes_notes || ""}
+                          onChange={handleInputChange}
+                          className="flex-1 px-2 py-1 border border-blue-400 rounded outline-none"
+                          placeholder="Notes..."
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-2 font-semibold text-gray-700">Updatig Master Sheets</td>
+                      <td className="p-2">
+                        <select
+                          name="updating_master_sheets"
+                          value={formData.updating_master_sheets || ""}
+                          onChange={handleInputChange}
+                          className={`w-full px-2 py-1 rounded border outline-none ${formData.updating_master_sheets === "pending" ? "bg-amber-500 text-white" : formData.updating_master_sheets === "This project is added in sheet" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="This project is added in sheet">This project is added in sheet</option>
+                          <option value="pending">pending</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700">Update in Tecnika order sheet</td>
+                      <td className="p-2 flex gap-2 items-center">
+                        <select
+                          name="update_tecnica_order_sheet"
+                          value={formData.update_tecnica_order_sheet || ""}
+                          onChange={handleInputChange}
+                          className={`flex-1 px-2 py-1 rounded border outline-none ${formData.update_tecnica_order_sheet === "pending" ? "bg-amber-500 text-white" : (formData.update_tecnica_order_sheet === "This project is added in sheet" || formData.update_tecnica_order_sheet === "Not required") ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="This project is added in sheet">This project is added in sheet</option>
+                          <option value="pending">pending</option>
+                          <option value="Not required">Not required</option>
+                        </select>
+                        <button type="button" className="px-2 py-1 bg-fuchsia-500 text-white rounded text-[10px] font-bold border border-fuchsia-600 hover:bg-fuchsia-600 whitespace-nowrap">
+                          Create C3 Order
+                        </button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 font-semibold text-gray-700">C3 Issues found internall or externally</td>
+                      <td className="p-2">
+                        <select
+                          name="c3_issues_found_internal"
+                          value={formData.c3_issues_found_internal || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 rounded border border-blue-300 bg-blue-50 text-blue-800 outline-none focus:border-blue-500"
+                        >
+                          <option value="">Select...</option>
+                          <option value="No issues">No issues</option>
+                          <option value="pending report">pending report</option>
+                          <option value="resolved">resolved</option>
+                        </select>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Screen 11B */}
+            {currentStep === '11B' && (
+              <div className="space-y-0 border border-gray-200 rounded overflow-hidden">
+                <table className="w-full text-xs border-collapse">
+                  <tbody>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700 w-1/3">Submission Status</td>
+                      <td className="p-2" colSpan="2">
+                        <select
+                          name="submission_status"
+                          value={formData.submission_status || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 rounded border border-emerald-300 bg-emerald-50 text-emerald-800 outline-none"
+                        >
+                          <option value="">Select...</option>
+                          <option value="Submitted for check">Submitted for check</option>
+                          <option value="pending submissions">pending submissions</option>
+                          <option value="onhold by funder">onhold by funder</option>
+                          <option value="onhold by office">onhold by office</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-2 font-semibold text-gray-700">Queries Status</td>
+                      <td className="p-2" colSpan="2">
+                        <select
+                          name="queries_status"
+                          value={formData.queries_status || ""}
+                          onChange={handleInputChange}
+                          className={`w-full px-2 py-1 rounded border outline-none ${formData.queries_status === "pending" ? "bg-amber-500 text-white" : formData.queries_status === "Resolved" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="pending">pending</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700">Trustmark Lodgement</td>
+                      <td className="p-2" colSpan="2">
+                        <select
+                          name="lodgement"
+                          value={formData.lodgement || ""}
+                          onChange={handleInputChange}
+                          className={`w-full px-2 py-1 rounded border outline-none ${formData.lodgement === "Pending" ? "bg-amber-500 text-white" : formData.lodgement === "Done" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="Done">Done</option>
+                          <option value="Pending">Pending</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-2 font-semibold text-gray-700 bg-gray-100">Trustmark_Project_Certificate</td>
+                      <td className="p-2" colSpan="2">
+                        <input
+                          type="text"
+                          name="trustmark_project_certificate"
+                          value={formData.trustmark_project_certificate || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 outline-none"
+                          placeholder="P123456789"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700 w-1/3">Tecnika</td>
+                      <td className="p-2" colSpan="2">
+                        <select
+                          name="tecnica"
+                          value={formData.tecnica || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                        >
+                          <option value="">Select...</option>
+                          <option value="Assigned">Assigned</option>
+                          <option value="Failed">Failed</option>
+                          <option value="Pass">Pass</option>
+                          <option value="Remedial Pending">Remedial Pending</option>
+                          <option value="ByPASS(Not required)">ByPASS(Not required)</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-2 font-semibold text-gray-700">Scaffolding Removed</td>
+                      <td className="p-2">
+                        <select
+                          name="scaffolding_removed_status"
+                          value={formData.scaffolding_removed_status || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                        >
+                          <option value="">Select...</option>
+                          <option value="yes">yes</option>
+                          <option value="no">no</option>
+                        </select>
+                      </td>
+                      <td className="p-2 w-1/3">
+                        <input
+                          type="date"
+                          name="scaffolding_removed_date"
+                          value={formData.scaffolding_removed_date || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700">Rubbish Collected</td>
+                      <td className="p-2">
+                        <select
+                          name="rubbish_collected_status"
+                          value={formData.rubbish_collected_status || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                        >
+                          <option value="">Select...</option>
+                          <option value="yes">yes</option>
+                          <option value="no">no</option>
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="date"
+                          name="rubbish_collected_date"
+                          value={formData.rubbish_collected_date || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200">
+                      <td className="p-2 font-semibold text-gray-700">Customer Feed Back</td>
+                      <td className="p-2" colSpan="2">
+                        <textarea
+                          name="customer_feedback_notes"
+                          value={formData.customer_feedback_notes || ""}
+                          onChange={handleInputChange}
+                          rows="2"
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none resize-none"
+                          placeholder="Notes"
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td className="p-2 font-semibold text-gray-700 uppercase">Complete the project</td>
+                      <td className="p-2" colSpan="2">
+                        <select
+                          name="complete_the_project"
+                          value={formData.complete_the_project || ""}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                        >
+                          <option value="">Select...</option>
+                          <option value="YES">YES</option>
+                          <option value="NO">NO</option>
+                        </select>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 align-top">
+                        <div className="font-semibold text-gray-700 uppercase">Final Comments</div>
+                        <div className="font-semibold text-gray-700 mt-4">Notes</div>
+                      </td>
+                      <td className="p-2 space-y-2" colSpan="2">
+                        <select
+                          name="final_comments"
+                          value={formData.final_comments || ""}
+                          onChange={handleInputChange}
+                          className={`w-full px-2 py-1 rounded border outline-none ${formData.final_comments === "Some issues not resolved" ? "bg-red-100 text-red-800 border-red-300" : "bg-gray-50 border-gray-300"}`}
+                        >
+                          <option value="">Select...</option>
+                          <option value="All Good Thanks">All Good Thanks</option>
+                          <option value="it was not perfect">it was not perfect</option>
+                          <option value="We'll come back">We'll come back</option>
+                          <option value="Some issues not resolved">Some issues not resolved</option>
+                          <option value="yes but customer was not ready">yes but customer was not ready</option>
+                        </select>
+                        <textarea
+                          name="final_notes"
+                          value={formData.final_notes || ""}
+                          onChange={handleInputChange}
+                          rows="2"
+                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none resize-none"
+                          placeholder="Enter final notes..."
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             )}
 
