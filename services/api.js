@@ -274,6 +274,23 @@ export const notificationsApiSlice = apiSlice.injectEndpoints({
   }),
 });
 
+export const evidenceTemplatesApiSlice = apiSlice.injectEndpoints({
+  endpoints: (builder) => ({
+    getEvidenceTemplates: builder.query({
+      query: () => "/evidence-templates",
+      providesTags: ["EvidenceTemplate"],
+    }),
+    createEvidenceTemplate: builder.mutation({
+      query: (templateData) => ({
+        url: "/evidence-templates",
+        method: "POST",
+        body: templateData,
+      }),
+      invalidatesTags: ["EvidenceTemplate"],
+    }),
+  }),
+});
+
 // Export hooks for usage in components
 export const { useLoginMutation, useRegisterMutation } = authApiSlice;
 
@@ -332,3 +349,8 @@ export const {
   useUpdatePropertyEvidenceMutation,
   useGetPropertyEvidenceQuery,
 } = leadsApiSlice;
+
+export const {
+  useGetEvidenceTemplatesQuery,
+  useCreateEvidenceTemplateMutation,
+} = evidenceTemplatesApiSlice;

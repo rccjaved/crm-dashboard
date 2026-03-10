@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, X, Copy, Plus } from "lucide-react";
 import { useSelector } from "react-redux";
-import { useUpdatePropertyEvidenceMutation, useGetPropertyEvidenceQuery, useGetLeadByIdQuery, useUpdateLeadMutation } from "@/services/api";
+import { useUpdatePropertyEvidenceMutation, useGetPropertyEvidenceQuery, useGetLeadByIdQuery, useUpdateLeadMutation, useGetEvidenceTemplatesQuery, useCreateEvidenceTemplateMutation } from "@/services/api";
 import { toast } from "react-toastify";
 
 const HARDCODED_DOCUMENTS = [
@@ -181,6 +181,8 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
   const [updateLead, { isLoading: isUpdatingLead }] = useUpdateLeadMutation();
   const { data: leadData, isLoading: isLoadingLead } = useGetLeadByIdQuery(leadId, { skip: !leadId || !isOpen });
   const { data: evidenceData, isLoading: isLoadingEvidence } = useGetPropertyEvidenceQuery(leadId, { skip: !leadId || !isOpen });
+  const { data: templatesData, refetch: refetchTemplates } = useGetEvidenceTemplatesQuery(undefined, { skip: !isOpen });
+  const [createTemplate] = useCreateEvidenceTemplateMutation();
   const [currentStep, setCurrentStep] = useState(availableSteps.length > 0 ? availableSteps[0] : 1);
 
   useEffect(() => {
@@ -858,6 +860,96 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
       return { ...prev, add_more_evidence_for_screen_4: arr };
     });
   };
+
+  const handleSaveAsTemplate = async (group) => {
+    if (!group.main_folder) {
+      toast.error("Please provide a folder name for the template");
+      return;
+    }
+    const templateName = prompt("Enter a name for this template:", group.main_folder);
+    if (!templateName) return;
+
+    try {
+      await createTemplate({
+        template_name: templateName,
+        main_folder: group.main_folder,
+        documents: group.documents
+      }).unwrap();
+      toast.success("Template saved successfully!");
+      refetchTemplates();
+    } catch (err) {
+      toast.error("Failed to save template");
+    }
+  };
+
+  const handleApplyTemplate = async (path, template, groupIndex = null) => {
+    setFormData(prev => {
+      const parts = path.split('.');
+      let mainField;
+      let finalValue;
+      let nextState;
+
+      const newGroupContent = {
+        main_folder: template.main_folder,
+        documents: JSON.parse(JSON.stringify(template.documents))
+      };
+
+      if (parts.length === 1) {
+        mainField = parts[0];
+        const arr = [...(Array.isArray(prev[mainField]) ? prev[mainField] : [])];
+        if (groupIndex !== null && groupIndex >= 0) {
+          arr[groupIndex] = { ...(arr[groupIndex] || {}), ...newGroupContent };
+        } else {
+          arr.push(newGroupContent);
+        }
+        finalValue = arr;
+        nextState = { ...prev, [mainField]: arr };
+      } else {
+        const [parentKey, arrayName] = parts;
+        mainField = parentKey;
+        const parentObj = { ...(prev[parentKey] || {}) };
+        const arr = [...(Array.isArray(parentObj[arrayName]) ? parentObj[arrayName] : [])];
+        if (groupIndex !== null && groupIndex >= 0) {
+          arr[groupIndex] = { ...(arr[groupIndex] || {}), ...newGroupContent };
+        } else {
+          arr.push(newGroupContent);
+        }
+        parentObj[arrayName] = arr;
+        finalValue = parentObj;
+        nextState = { ...prev, [parentKey]: parentObj };
+      }
+
+      // Auto-save to database immediately
+      if (prev.lead_id) {
+        updatePropertyEvidence({
+          lead_id: parseInt(prev.lead_id),
+          [mainField]: finalValue
+        }).unwrap().catch(err => console.error("Template auto-save failed:", err));
+      }
+
+      return nextState;
+    });
+    toast.success("Template applied and saved!");
+  };
+
+  const addGroupWithPath = (path) => {
+    setFormData(prev => {
+      const parts = path.split('.');
+      if (parts.length === 1) {
+        const arrayName = parts[0];
+        return {
+          ...prev,
+          [arrayName]: [...(Array.isArray(prev[arrayName]) ? prev[arrayName] : []), { main_folder: '', documents: [] }]
+        };
+      } else {
+        const [parentKey, arrayName] = parts;
+        const parentObj = { ...(prev[parentKey] || {}) };
+        parentObj[arrayName] = [...(Array.isArray(parentObj[arrayName]) ? parentObj[arrayName] : []), { main_folder: '', documents: [] }];
+        return { ...prev, [parentKey]: parentObj };
+      }
+    });
+  };
+
   // Map each screen to the fields it owns
   const getScreenFields = (step) => {
     switch (step) {
@@ -1655,10 +1747,31 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 <div className="pt-4 border-t mt-4">
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-tight">Add More Evidence (3A)</h3>
-                    <button type="button" onClick={addMoreEvidence3aGroup} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
-                      <Plus className="w-3 h-3" />
-                      Add Group
-                    </button>
+                    <div className="flex gap-2">
+                      {templatesData?.data?.length > 0 && (
+                        <select
+                          className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const template = templatesData.data.find(t => t.id == e.target.value);
+                              if (template) {
+                                handleApplyTemplate('add_more_evidence_3a', template);
+                              }
+                              e.target.value = "";
+                            }
+                          }}
+                        >
+                          <option value="">Fetch Template...</option>
+                          {templatesData.data.map(t => (
+                            <option key={t.id} value={t.id}>{t.template_name}</option>
+                          ))}
+                        </select>
+                      )}
+                      <button type="button" onClick={addMoreEvidence3aGroup} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
+                        <Plus className="w-3 h-3" />
+                        Add Group
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -1694,6 +1807,15 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                             </div>
                             <button type="button" onClick={() => removeMoreEvidence3aGroup(gi)} className="ml-2 text-red-500 hover:text-red-700">
                               <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="flex justify-end gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => handleSaveAsTemplate(group)}
+                              className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors"
+                            >
+                              <Copy className="w-2.5 h-2.5" /> Save as Template
                             </button>
                           </div>
 
@@ -1748,7 +1870,34 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             {/* Step 3B: Add More Evidence */}
             {currentStep == '3B' && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Add More Evidence (3B)</h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-semibold text-gray-800">Add More Evidence (3B)</h3>
+                  <div className="flex gap-2">
+                    {templatesData?.data?.length > 0 && (
+                      <select
+                        className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            const template = templatesData.data.find(t => t.id == e.target.value);
+                            if (template) {
+                              handleApplyTemplate('add_more_evidence', template);
+                            }
+                            e.target.value = "";
+                          }
+                        }}
+                      >
+                        <option value="">Fetch Template...</option>
+                        {templatesData.data.map(t => (
+                          <option key={t.id} value={t.id}>{t.template_name}</option>
+                        ))}
+                      </select>
+                    )}
+                    <button type="button" onClick={addMoreEvidenceGroup} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
+                      <Plus className="w-3 h-3" />
+                      Add Group
+                    </button>
+                  </div>
+                </div>
 
                 <div className="space-y-4">
                   {(Array.isArray(formData.add_more_evidence) ? formData.add_more_evidence : []).map((group, gi) => {
@@ -1784,14 +1933,23 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                         <div className="mb-2 pb-1 border-b border-gray-300/50">
                           <div className="flex justify-between items-center mb-1">
                             <label className="text-xs font-semibold text-gray-800">Main Folder</label>
-                            <button
-                              type="button"
-                              onClick={() => removeMoreEvidenceGroup(gi)}
-                              className="px-2 py-0.5 text-red-600 font-medium hover:bg-red-50 rounded transition-colors text-[10px] flex items-center gap-1"
-                            >
-                              <X className="w-3 h-3" />
-                              Remove Group
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAsTemplate(group)}
+                                className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors"
+                              >
+                                <Copy className="w-2.5 h-2.5" /> Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeMoreEvidenceGroup(gi)}
+                                className="px-2 py-0.5 text-red-600 font-medium hover:bg-red-50 rounded transition-colors text-[10px] flex items-center gap-1"
+                              >
+                                <X className="w-3 h-3" />
+                                Remove Group
+                              </button>
+                            </div>
                           </div>
                           <input
                             type="text"
@@ -1868,767 +2026,867 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             )}
 
             {/* Step 4: EPC & Numeric Metrics (Old Screen 4 - Unchanged position) */}
-            {currentStep == 4 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-1">EPC &amp; Numeric Metrics</h3>
+            {
+              currentStep == 4 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">EPC &amp; Numeric Metrics</h3>
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">Services Required</label>
-                  <div className="mt-1">
-                    {Array.isArray(formData.services) && formData.services.length > 0 ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {formData.services.map((s, i) => {
-                          const n = (s || "").toLowerCase();
-                          let icon = "⚙️";
-                          if (n.includes("ewi")) icon = "🏠";
-                          else if (n.includes("boiler")) icon = "🔧";
-                          else if (n.includes("heating") || n.includes("ftch") || n.includes("control")) icon = "🌡️";
-                          else if (n.includes("loft")) icon = "🛖";
-                          else if (n.includes("solar")) icon = "☀️";
-                          else if (n.includes("single")) icon = "🔹";
-
-                          return (
-                            <span key={i} className="inline-flex items-center px-1.5 py-0.5 text-[10px] bg-gray-100 rounded">
-                              <span className="mr-1 text-xs" aria-hidden>{icon}</span>
-                              <span>{s}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-gray-500">No services selected on the lead.</div>
-                    )}
-                  </div>
-
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">Start SAP</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="start_sap"
-                      value={formData.start_sap ?? ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, start_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">End SAP</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="end_sap"
-                      value={formData.end_sap ?? ""}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, end_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
-                      className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                    />
-                  </div>
-                </div>
+                    <label className="block text-xs font-medium text-gray-700">Services Required</label>
+                    <div className="mt-1">
+                      {Array.isArray(formData.services) && formData.services.length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {formData.services.map((s, i) => {
+                            const n = (s || "").toLowerCase();
+                            let icon = "⚙️";
+                            if (n.includes("ewi")) icon = "🏠";
+                            else if (n.includes("boiler")) icon = "🔧";
+                            else if (n.includes("heating") || n.includes("ftch") || n.includes("control")) icon = "🌡️";
+                            else if (n.includes("loft")) icon = "🛖";
+                            else if (n.includes("solar")) icon = "☀️";
+                            else if (n.includes("single")) icon = "🔹";
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">Number Metrics (1/2/3)</label>
-                  <div className="grid grid-cols-3 gap-2 mt-1">
-                    <input type="number" step="0.01" placeholder="N1" value={formData.number_metrics?.number1 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number1', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
-                    <input type="number" step="0.01" placeholder="N2" value={formData.number_metrics?.number2 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number2', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
-                    <input type="number" step="0.01" placeholder="N3" value={formData.number_metrics?.number3 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number3', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-gray-700 border-b pb-0.5">EPC Metrics</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* epc_rating */}
-                    <div className="bg-gray-50/50 p-1 rounded">
-                      <div className="text-[10px] font-medium text-gray-600 mb-1">EPC Rating</div>
-                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.epc_rating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.epc_rating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.epc_rating?.difference ?? "0"}</div>
+                            return (
+                              <span key={i} className="inline-flex items-center px-1.5 py-0.5 text-[10px] bg-gray-100 rounded">
+                                <span className="mr-1 text-xs" aria-hidden>{icon}</span>
+                                <span>{s}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-gray-500">No services selected on the lead.</div>
+                      )}
                     </div>
 
-                    {/* epc_area */}
-                    <div className="bg-gray-50/50 p-1 rounded">
-                      <div className="text-[10px] font-medium text-gray-600 mb-1">EPC Area</div>
-                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.epc_area?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.epc_area?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.epc_area?.difference ?? "0"}</div>
-                    </div>
-
-                    {/* loft_insulation */}
-                    <div className="bg-gray-50/50 p-1 rounded">
-                      <div className="text-[10px] font-medium text-gray-600 mb-1">Loft Ins (mm)</div>
-                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.loft_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.loft_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.loft_insulation?.difference ?? "0"}</div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* secondary_heating */}
-                    <div className="bg-gray-50/50 p-1 rounded">
-                      <div className="text-[10px] font-medium text-gray-600 mb-1">Sec Heating</div>
-                      <input type="number" step="1" placeholder="Prev" value={formData.epc_metrics?.secondary_heating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <input type="number" step="1" placeholder="Curr" value={formData.epc_metrics?.secondary_heating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                    </div>
-
-                    {/* cavity_wall_insulation */}
-                    <div className="bg-gray-50/50 p-1 rounded">
-                      <div className="text-[10px] font-medium text-gray-600 mb-1">Cavity Wall</div>
-                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.cavity_wall_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.cavity_wall_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                    </div>
-
-                    {/* loft_ext_1 */}
-                    <div className="bg-gray-50/50 p-1 rounded">
-                      <div className="text-[10px] font-medium text-gray-600 mb-1">Loft Ext 1</div>
-                      <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.loft_ext_1?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                      <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.loft_ext_1?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Property Age (P/C)</label>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <input type="text" placeholder="Prev" value={formData.epc_metrics?.property_age?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'previous', e.target.value, false)} className="px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
-                        <input type="text" placeholder="Curr" value={formData.epc_metrics?.property_age?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'current', e.target.value, false)} className="px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
-                      </div>
+                      <label className="block text-xs font-medium text-gray-700">Start SAP</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        name="start_sap"
+                        value={formData.start_sap ?? ""}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, start_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                        className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                      />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">High Value Notes</label>
-                      <textarea
-                        name="high_value_notes"
-                        value={formData.high_value_notes}
-                        onChange={handleInputChange}
-                        placeholder="..."
-                        className="block w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded"
-                        rows="1"
+                      <label className="block text-xs font-medium text-gray-700">End SAP</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        name="end_sap"
+                        value={formData.end_sap ?? ""}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, end_sap: e.target.value === "" ? null : parseFloat(e.target.value) }))}
+                        className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded"
                       />
                     </div>
                   </div>
-                </div>
 
-                {/* Additional Added Fields for Step 4 */}
-                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
                   <div>
-                    <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Floor Area</label>
-                    <input type="text" name="floor_area" value={formData.floor_area ?? ""} onChange={handleInputChange} className="px-1.5 py-0.5 w-full text-[11px] border border-gray-300 rounded" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-gray-600 mb-0.5">ABS</label>
-                    <input type="text" name="abs" value={formData.abs ?? ""} onChange={handleInputChange} className="px-1.5 py-0.5 w-full text-[11px] border border-gray-300 rounded" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Any Potential</label>
-                  <textarea name="any_potential" value={formData.any_potential ?? ""} onChange={handleInputChange} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded max-h-16" rows="2" />
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-gray-200">
-                  <h4 className="text-xs font-semibold text-gray-700 mb-2">Additional checks</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">ASHP suitable?</label>
-                      <select name="ashp_suitable" value={formData.additional_checks?.ashp_suitable ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'ashp_suitable', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded bg-white">
-                        <option value="">Select...</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Roof is good for Solar?</label>
-                      <select name="roof_is_good_for_solar" value={formData.additional_checks?.roof_is_good_for_solar ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'roof_is_good_for_solar', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded bg-white">
-                        <option value="">Select...</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Any Trees Nearby</label>
-                      <input type="text" name="any_trees_nearby" value={formData.additional_checks?.any_trees_nearby ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'any_trees_nearby', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Orientation</label>
-                      <input type="text" name="orientation" value={formData.additional_checks?.orientation ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'orientation', null, e.target.value, false)} placeholder="e.g. South" className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                    <label className="block text-xs font-medium text-gray-700">Number Metrics (1/2/3)</label>
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      <input type="number" step="0.01" placeholder="N1" value={formData.number_metrics?.number1 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number1', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="N2" value={formData.number_metrics?.number2 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number2', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <input type="number" step="0.01" placeholder="N3" value={formData.number_metrics?.number3 ?? ""} onChange={(e) => handleNestedInput('number_metrics', 'number3', null, e.target.value, true)} className="px-2 py-1 text-xs border border-gray-300 rounded" />
                     </div>
                   </div>
-                </div>
 
-                <div className="pt-4 border-t mt-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-tight">Add More Evidence (Screen 4)</h3>
-                    <button type="button" onClick={addMoreEvidence4Group} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
-                      <Plus className="w-3 h-3" />
-                      Add Group
-                    </button>
-                  </div>
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-gray-700 border-b pb-0.5">EPC Metrics</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* epc_rating */}
+                      <div className="bg-gray-50/50 p-1 rounded">
+                        <div className="text-[10px] font-medium text-gray-600 mb-1">EPC Rating</div>
+                        <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.epc_rating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.epc_rating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_rating', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.epc_rating?.difference ?? "0"}</div>
+                      </div>
 
-                  <div className="space-y-4">
-                    {(Array.isArray(formData.add_more_evidence_for_screen_4) ? formData.add_more_evidence_for_screen_4 : []).map((group, gi) => {
-                      const colors = ["border-blue-400 bg-blue-50/30", "border-emerald-400 bg-emerald-50/30", "border-purple-400 bg-purple-50/30", "border-orange-400 bg-orange-50/30", "border-rose-400 bg-rose-50/30"];
-                      const tableHeaders = ["bg-blue-600/10", "bg-emerald-600/10", "bg-purple-600/10", "bg-orange-600/10", "bg-rose-600/10"];
-                      const colorClass = colors[gi % colors.length];
-                      const headerClass = tableHeaders[gi % tableHeaders.length];
+                      {/* epc_area */}
+                      <div className="bg-gray-50/50 p-1 rounded">
+                        <div className="text-[10px] font-medium text-gray-600 mb-1">EPC Area</div>
+                        <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.epc_area?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.epc_area?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'epc_area', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.epc_area?.difference ?? "0"}</div>
+                      </div>
 
-                      return (
-                        <div key={gi} className={`p-2 border rounded shadow-sm ${colorClass} transition-shadow`}>
-                          <div className="flex justify-between items-center mb-2">
-                            <div className="flex-1">
-                              <input
-                                type="text"
-                                placeholder="Folder Name"
-                                value={group.main_folder || ""}
-                                onChange={(e) => updateMoreEvidence4Group(gi, 'main_folder', e.target.value)}
-                                className="block w-full px-2 py-1 text-xs font-bold bg-white/70 border-b border-gray-300 rounded outline-none"
-                              />
-                            </div>
-                            <button type="button" onClick={() => removeMoreEvidence4Group(gi)} className="ml-2 text-red-500 hover:text-red-700">
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                      {/* loft_insulation */}
+                      <div className="bg-gray-50/50 p-1 rounded">
+                        <div className="text-[10px] font-medium text-gray-600 mb-1">Loft Ins (mm)</div>
+                        <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.loft_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.loft_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_insulation', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <div className="mt-0.5 text-[9px] text-gray-500">Diff: {formData.epc_metrics?.loft_insulation?.difference ?? "0"}</div>
+                      </div>
+                    </div>
 
-                          <div className="bg-white rounded border border-gray-200 overflow-hidden shadow-sm">
-                            <table className="w-full text-[11px]">
-                              <thead className={`${headerClass} border-b`}>
-                                <tr>
-                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700">Name</th>
-                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700 w-36">Status</th>
-                                  <th className="px-2 py-1.5 text-left font-bold text-gray-700">Issue</th>
-                                  <th className="px-2 py-1.5 text-center font-bold text-gray-700 w-10">Action</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
-                                  <tr key={di} className="border-b last:border-0 hover:bg-gray-50/50">
-                                    <td className="px-2 py-1 border-r">
-                                      <input type="text" value={doc.name || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'name', e.target.value)} placeholder="Name..." className="w-full p-0 bg-transparent outline-none" />
-                                    </td>
-                                    <td className="px-2 py-1 border-r">
-                                      <select value={doc.status || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'status', e.target.value)} className="w-full p-0 bg-transparent outline-none text-[10px] font-semibold text-gray-700">
-                                        <option value="">Select...</option>
-                                        <option value="Done">Done</option>
-                                        <option value="Pending">Pending</option>
-                                        <option value="Not Required">Not Required</option>
-                                      </select>
-                                    </td>
-                                    <td className="px-2 py-1 border-r">
-                                      <input value={doc.issue || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'issue', e.target.value)} placeholder="..." className="w-full p-0 bg-transparent outline-none" />
-                                    </td>
-                                    <td className="px-2 py-1 text-center">
-                                      <button type="button" onClick={() => removeMoreEvidence4Row(gi, di)}>
-                                        <X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                            <button type="button" onClick={() => addMoreEvidence4Row(gi)} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">
-                              + Add Row
-                            </button>
-                          </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* secondary_heating */}
+                      <div className="bg-gray-50/50 p-1 rounded">
+                        <div className="text-[10px] font-medium text-gray-600 mb-1">Sec Heating</div>
+                        <input type="number" step="1" placeholder="Prev" value={formData.epc_metrics?.secondary_heating?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <input type="number" step="1" placeholder="Curr" value={formData.epc_metrics?.secondary_heating?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'secondary_heating', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      </div>
+
+                      {/* cavity_wall_insulation */}
+                      <div className="bg-gray-50/50 p-1 rounded">
+                        <div className="text-[10px] font-medium text-gray-600 mb-1">Cavity Wall</div>
+                        <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.cavity_wall_insulation?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.cavity_wall_insulation?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'cavity_wall_insulation', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      </div>
+
+                      {/* loft_ext_1 */}
+                      <div className="bg-gray-50/50 p-1 rounded">
+                        <div className="text-[10px] font-medium text-gray-600 mb-1">Loft Ext 1</div>
+                        <input type="number" step="0.01" placeholder="Prev" value={formData.epc_metrics?.loft_ext_1?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'previous', e.target.value, true)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                        <input type="number" step="0.01" placeholder="Curr" value={formData.epc_metrics?.loft_ext_1?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'loft_ext_1', 'current', e.target.value, true)} className="mt-1 block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Property Age (P/C)</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <input type="text" placeholder="Prev" value={formData.epc_metrics?.property_age?.previous ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'previous', e.target.value, false)} className="px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                          <input type="text" placeholder="Curr" value={formData.epc_metrics?.property_age?.current ?? ""} onChange={(e) => handleNestedInput('epc_metrics', 'property_age', 'current', e.target.value, false)} className="px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
                         </div>
-                      );
-                    })}
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-0.5">High Value Notes</label>
+                        <textarea
+                          name="high_value_notes"
+                          value={formData.high_value_notes}
+                          onChange={handleInputChange}
+                          placeholder="..."
+                          className="block w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded"
+                          rows="1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Added Fields for Step 4 */}
+                  <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Floor Area</label>
+                      <input type="text" name="floor_area" value={formData.floor_area ?? ""} onChange={handleInputChange} className="px-1.5 py-0.5 w-full text-[11px] border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-gray-600 mb-0.5">ABS</label>
+                      <input type="text" name="abs" value={formData.abs ?? ""} onChange={handleInputChange} className="px-1.5 py-0.5 w-full text-[11px] border border-gray-300 rounded" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Any Potential</label>
+                    <textarea name="any_potential" value={formData.any_potential ?? ""} onChange={handleInputChange} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded max-h-16" rows="2" />
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <h4 className="text-xs font-semibold text-gray-700 mb-2">Additional checks</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-0.5">ASHP suitable?</label>
+                        <select name="ashp_suitable" value={formData.additional_checks?.ashp_suitable ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'ashp_suitable', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded bg-white">
+                          <option value="">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Roof is good for Solar?</label>
+                        <select name="roof_is_good_for_solar" value={formData.additional_checks?.roof_is_good_for_solar ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'roof_is_good_for_solar', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded bg-white">
+                          <option value="">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Any Trees Nearby</label>
+                        <input type="text" name="any_trees_nearby" value={formData.additional_checks?.any_trees_nearby ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'any_trees_nearby', null, e.target.value, false)} className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600 mb-0.5">Orientation</label>
+                        <input type="text" name="orientation" value={formData.additional_checks?.orientation ?? ""} onChange={(e) => handleNestedInput('additional_checks', 'orientation', null, e.target.value, false)} placeholder="e.g. South" className="w-full px-1.5 py-0.5 text-[11px] border border-gray-300 rounded" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t mt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-tight">Add More Evidence (Screen 4)</h3>
+                      <div className="flex gap-2">
+                        {templatesData?.data?.length > 0 && (
+                          <select
+                            className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const template = templatesData.data.find(t => t.id == e.target.value);
+                                if (template) {
+                                  handleApplyTemplate('add_more_evidence_for_screen_4', template);
+                                }
+                                e.target.value = "";
+                              }
+                            }}
+                          >
+                            <option value="">Fetch Template...</option>
+                            {templatesData.data.map(t => (
+                              <option key={t.id} value={t.id}>{t.template_name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <button type="button" onClick={addMoreEvidence4Group} className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1">
+                          <Plus className="w-3 h-3" />
+                          Add Group
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(Array.isArray(formData.add_more_evidence_for_screen_4) ? formData.add_more_evidence_for_screen_4 : []).map((group, gi) => {
+                        const colors = ["border-blue-400 bg-blue-50/30", "border-emerald-400 bg-emerald-50/30", "border-purple-400 bg-purple-50/30", "border-orange-400 bg-orange-50/30", "border-rose-400 bg-rose-50/30"];
+                        const tableHeaders = ["bg-blue-600/10", "bg-emerald-600/10", "bg-purple-600/10", "bg-orange-600/10", "bg-rose-600/10"];
+                        const colorClass = colors[gi % colors.length];
+                        const headerClass = tableHeaders[gi % tableHeaders.length];
+
+                        return (
+                          <div key={gi} className={`p-2 border rounded shadow-sm ${colorClass} transition-shadow`}>
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  placeholder="Folder Name"
+                                  value={group.main_folder || ""}
+                                  onChange={(e) => updateMoreEvidence4Group(gi, 'main_folder', e.target.value)}
+                                  className="block w-full px-2 py-1 text-xs font-bold bg-white/70 border-b border-gray-300 rounded outline-none"
+                                />
+                              </div>
+                              <button type="button" onClick={() => removeMoreEvidence4Group(gi)} className="ml-2 text-red-500 hover:text-red-700">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex justify-end mb-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAsTemplate(group)}
+                                className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors"
+                              >
+                                <Copy className="w-2.5 h-2.5" /> Save as Template
+                              </button>
+                            </div>
+
+                            <div className="bg-white rounded border border-gray-200 overflow-hidden shadow-sm">
+                              <table className="w-full text-[11px]">
+                                <thead className={`${headerClass} border-b`}>
+                                  <tr>
+                                    <th className="px-2 py-1.5 text-left font-bold text-gray-700">Name</th>
+                                    <th className="px-2 py-1.5 text-left font-bold text-gray-700 w-36">Status</th>
+                                    <th className="px-2 py-1.5 text-left font-bold text-gray-700">Issue</th>
+                                    <th className="px-2 py-1.5 text-center font-bold text-gray-700 w-10">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                                    <tr key={di} className="border-b last:border-0 hover:bg-gray-50/50">
+                                      <td className="px-2 py-1 border-r">
+                                        <input type="text" value={doc.name || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'name', e.target.value)} placeholder="Name..." className="w-full p-0 bg-transparent outline-none" />
+                                      </td>
+                                      <td className="px-2 py-1 border-r">
+                                        <select value={doc.status || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'status', e.target.value)} className="w-full p-0 bg-transparent outline-none text-[10px] font-semibold text-gray-700">
+                                          <option value="">Select...</option>
+                                          <option value="Done">Done</option>
+                                          <option value="Pending">Pending</option>
+                                          <option value="Not Required">Not Required</option>
+                                        </select>
+                                      </td>
+                                      <td className="px-2 py-1 border-r">
+                                        <input value={doc.issue || ""} onChange={(e) => updateMoreEvidence4Row(gi, di, 'issue', e.target.value)} placeholder="..." className="w-full p-0 bg-transparent outline-none" />
+                                      </td>
+                                      <td className="px-2 py-1 text-center">
+                                        <button type="button" onClick={() => removeMoreEvidence4Row(gi, di)}>
+                                          <X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              <button type="button" onClick={() => addMoreEvidence4Row(gi)} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">
+                                + Add Row
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {/* Step 11: Sheet / Trustmark & Tecnica (Old Screen 5) */}
-            {currentStep == 11 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Sheet / Trustmark &amp; Tecnica</h3>
+            {
+              currentStep == 11 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2">Sheet / Trustmark &amp; Tecnica</h3>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="epr_check_matching" checked={formData.epr_check_matching} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">EPR Check Matching</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="installation_changes" checked={formData.installation_changes} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">Installation Changes</span>
-                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="epr_check_matching" checked={formData.epr_check_matching} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">EPR Check Matching</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="installation_changes" checked={formData.installation_changes} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">Installation Changes</span>
+                    </label>
 
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="pas10_changes_before_submit" checked={formData.pas10_changes_before_submit} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">PAS10 Changes Before Submit</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="updating_master_sheets" checked={formData.updating_master_sheets} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">Updating Master Sheets</span>
-                  </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="pas10_changes_before_submit" checked={formData.pas10_changes_before_submit} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">PAS10 Changes Before Submit</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="updating_master_sheets" checked={formData.updating_master_sheets} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">Updating Master Sheets</span>
+                    </label>
 
-                  {/* <div>
+                    {/* <div>
                     <label className="block text-xs font-medium text-gray-600">Master Sheet Giant Source</label>
                     <input type="url" name="master_sheet_giant_source" value={formData.master_sheet_giant_source} onChange={handleInputChange} placeholder="https://..." className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
                   </div> */}
 
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="update_tecnica_order_sheet" checked={formData.update_tecnica_order_sheet} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">Update Tecnica Order Sheet</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="c3_issues_found_internal" checked={formData.c3_issues_found_internal} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">C3 Issues Found (Internal)</span>
-                  </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="update_tecnica_order_sheet" checked={formData.update_tecnica_order_sheet} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">Update Tecnica Order Sheet</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="c3_issues_found_internal" checked={formData.c3_issues_found_internal} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">C3 Issues Found (Internal)</span>
+                    </label>
 
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="c2_packs_all_key_parts_and_stages" checked={formData.c2_packs_all_key_parts_and_stages} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">C2 Packs All Key Parts &amp; Stages</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="c3_packs_all_key_parts" checked={formData.c3_packs_all_key_parts} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">C3 Packs All Key Parts</span>
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-600">Queries</label>
-                  <select name="queries" value={formData.queries ?? ""} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded">
-                    <option value="">Select...</option>
-                    <option value="Required">Required</option>
-                    <option value="Not Available">Not Available</option>
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <label className="flex items-center space-x-2">
-                    <input type="checkbox" name="queries_status" checked={formData.queries_status} onChange={handleInputChange} className="w-4 h-4" />
-                    <span className="text-sm">Queries Resolved</span>
-                  </label>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Trustmark</label>
-                    <input type="text" name="trustmark" value={formData.trustmark} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="c2_packs_all_key_parts_and_stages" checked={formData.c2_packs_all_key_parts_and_stages} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">C2 Packs All Key Parts &amp; Stages</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="c3_packs_all_key_parts" checked={formData.c3_packs_all_key_parts} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">C3 Packs All Key Parts</span>
+                    </label>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Lodgement</label>
-                    <input type="text" name="lodgement" value={formData.lodgement} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600">Trustmark Project Certificate</label>
-                    <input type="text" name="trustmark_project_certificate" value={formData.trustmark_project_certificate} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Project Stage1 Trustmark Project Certificate</label>
-                    <input type="text" name="project_stage1_trustmark_project_certificate" value={formData.project_stage1_trustmark_project_certificate} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-600">Tecnica</label>
-                  <input type="text" name="tecnica" value={formData.tecnica} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Scaffolding Removed Date</label>
-                    <input type="date" name="scaffolding_removed_date" value={formData.scaffolding_removed_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600">Rubbish Collected Date</label>
-                    <input type="date" name="rubbish_collected_date" value={formData.rubbish_collected_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Screen 7A: Pre Paperwork */}
-            {currentStep === '7A' && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Pre Paper Work</h3>
-
-                {/* Dropdown fields */}
-                {[
-                  {
-                    label: 'Ventilation Assessment File',
-                    key: 'ventilation_assessment_file',
-                    options: [
-                      { value: 'completed_checked_verified', label: 'Completed, Checked and Verified' },
-                      { value: 'pending', label: 'Pending' },
-                    ]
-                  },
-                  {
-                    label: 'Floor Plan Ready and Tested with Calculation',
-                    key: 'floor_plan',
-                    options: [
-                      { value: 'checked_and_verified', label: 'Checked and Verified' },
-                      { value: 'pending', label: 'Pending' },
-                    ]
-                  },
-                  {
-                    label: 'Assessment',
-                    key: 'assessment',
-                    options: [
-                      { value: 'prepared', label: 'Prepared' },
-                      { value: 'not_done', label: 'Not Done' },
-                      { value: 'text_only_updated', label: 'Text Only Updated' },
-                    ]
-                  },
-                  {
-                    label: 'Retrofit Design',
-                    key: 'retrofit_design',
-                    options: [
-                      { value: 'received_and_checked', label: 'Received and Checked' },
-                      { value: 'pending', label: 'Pending' },
-                      { value: 'sent_out_for_designing', label: 'Sent Out for Designing' },
-                    ]
-                  },
-                  {
-                    label: 'Solar/ASHP Design',
-                    key: 'solar_ashp_design',
-                    options: [
-                      { value: 'received_and_checked', label: 'Received and Checked' },
-                      { value: 'pending', label: 'Pending' },
-                      { value: 'sent_out_for_designing', label: 'Sent Out for Designing' },
-                    ]
-                  },
-                  {
-                    label: 'Customer Quotes',
-                    key: 'customer_quotes',
-                    options: [
-                      { value: 'sent_to_customer', label: 'Sent to Customer' },
-                      { value: 'not_sent', label: 'Not Sent' },
-                    ]
-                  },
-                ].map(({ label, key, options }) => (
-                  <div key={key}>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
-                    <select
-                      value={formData.pre_paperwork_7a?.[key] || ''}
-                      onChange={(e) => setFormData(prev => ({
-                        ...prev,
-                        pre_paperwork_7a: { ...prev.pre_paperwork_7a, [key]: e.target.value }
-                      }))}
-                      className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
-                    >
+                    <label className="block text-xs font-medium text-gray-600">Queries</label>
+                    <select name="queries" value={formData.queries ?? ""} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded">
                       <option value="">Select...</option>
-                      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      <option value="Required">Required</option>
+                      <option value="Not Available">Not Available</option>
                     </select>
                   </div>
-                ))}
 
-                {/* Add More Evidence - similar to screen 3B */}
-                <div className="mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        pre_paperwork_7a: {
-                          ...prev.pre_paperwork_7a,
-                          add_more_evidence: [
-                            ...(prev.pre_paperwork_7a?.add_more_evidence || []),
-                            { main_folder: '', documents: [] }
-                          ]
-                        }
-                      }))}
-                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      + Add Group
-                    </button>
-                  </div>
-                  {(formData.pre_paperwork_7a?.add_more_evidence || []).map((group, gi) => (
-                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
-                      <div className="flex justify-between items-center mb-1">
-                        <input
-                          type="text"
-                          placeholder="Folder name..."
-                          value={group.main_folder || ''}
-                          onChange={(e) => setFormData(prev => {
-                            const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
-                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
-                            return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
-                          })}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormData(prev => {
-                            const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
-                            arr.splice(gi, 1);
-                            return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
-                          })}
-                          className="text-red-500 hover:text-red-700 ml-1"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <table className="w-full text-[10px] border border-gray-200 rounded">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left border-r">Name</th>
-                            <th className="px-2 py-1 text-left border-r">Status</th>
-                            <th className="px-2 py-1 text-left border-r">Issue</th>
-                            <th className="px-2 py-1 text-center w-6"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(group.documents || []).map((doc, di) => (
-                            <tr key={di} className="border-t border-gray-100">
-                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
-                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
-                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
-                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => {
-                          const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
-                          const g = { ...arr[gi] };
-                          g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }];
-                          arr[gi] = g;
-                          return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
-                        })}
-                        className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100"
-                      >
-                        + Add Row
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Screen 7B: Material */}
-            {currentStep === '7B' && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Material</h3>
-
-                {/* Material rows: status yes/no + date */}
-                {[
-                  { label: 'Solar', key: 'solar' },
-                  { label: 'ASHP', key: 'ashp' },
-                  { label: 'Boiler and HC', key: 'boiler_hc' },
-                  { label: 'Loft', key: 'loft' },
-                  { label: 'Scaffolding Order', key: 'scaffolding_order' },
-                ].map(({ label, key }) => (
-                  <div key={key} className="grid grid-cols-3 gap-3 items-end">
+                  <div className="grid grid-cols-3 gap-4">
+                    <label className="flex items-center space-x-2">
+                      <input type="checkbox" name="queries_status" checked={formData.queries_status} onChange={handleInputChange} className="w-4 h-4" />
+                      <span className="text-sm">Queries Resolved</span>
+                    </label>
                     <div>
+                      <label className="block text-xs font-medium text-gray-600">Trustmark</label>
+                      <input type="text" name="trustmark" value={formData.trustmark} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Lodgement</label>
+                      <input type="text" name="lodgement" value={formData.lodgement} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Trustmark Project Certificate</label>
+                      <input type="text" name="trustmark_project_certificate" value={formData.trustmark_project_certificate} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Project Stage1 Trustmark Project Certificate</label>
+                      <input type="text" name="project_stage1_trustmark_project_certificate" value={formData.project_stage1_trustmark_project_certificate} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600">Tecnica</label>
+                    <input type="text" name="tecnica" value={formData.tecnica} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Scaffolding Removed Date</label>
+                      <input type="date" name="scaffolding_removed_date" value={formData.scaffolding_removed_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600">Rubbish Collected Date</label>
+                      <input type="date" name="rubbish_collected_date" value={formData.rubbish_collected_date} onChange={handleInputChange} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            {/* Screen 7A: Pre Paperwork */}
+            {
+              currentStep === '7A' && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Pre Paper Work</h3>
+
+                  {/* Dropdown fields */}
+                  {[
+                    {
+                      label: 'Ventilation Assessment File',
+                      key: 'ventilation_assessment_file',
+                      options: [
+                        { value: 'completed_checked_verified', label: 'Completed, Checked and Verified' },
+                        { value: 'pending', label: 'Pending' },
+                      ]
+                    },
+                    {
+                      label: 'Floor Plan Ready and Tested with Calculation',
+                      key: 'floor_plan',
+                      options: [
+                        { value: 'checked_and_verified', label: 'Checked and Verified' },
+                        { value: 'pending', label: 'Pending' },
+                      ]
+                    },
+                    {
+                      label: 'Assessment',
+                      key: 'assessment',
+                      options: [
+                        { value: 'prepared', label: 'Prepared' },
+                        { value: 'not_done', label: 'Not Done' },
+                        { value: 'text_only_updated', label: 'Text Only Updated' },
+                      ]
+                    },
+                    {
+                      label: 'Retrofit Design',
+                      key: 'retrofit_design',
+                      options: [
+                        { value: 'received_and_checked', label: 'Received and Checked' },
+                        { value: 'pending', label: 'Pending' },
+                        { value: 'sent_out_for_designing', label: 'Sent Out for Designing' },
+                      ]
+                    },
+                    {
+                      label: 'Solar/ASHP Design',
+                      key: 'solar_ashp_design',
+                      options: [
+                        { value: 'received_and_checked', label: 'Received and Checked' },
+                        { value: 'pending', label: 'Pending' },
+                        { value: 'sent_out_for_designing', label: 'Sent Out for Designing' },
+                      ]
+                    },
+                    {
+                      label: 'Customer Quotes',
+                      key: 'customer_quotes',
+                      options: [
+                        { value: 'sent_to_customer', label: 'Sent to Customer' },
+                        { value: 'not_sent', label: 'Not Sent' },
+                      ]
+                    },
+                  ].map(({ label, key, options }) => (
+                    <div key={key}>
                       <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
-                      <p className="text-[10px] text-gray-400">Status</p>
                       <select
-                        value={formData.material_7b?.[key]?.status || ''}
+                        value={formData.pre_paperwork_7a?.[key] || ''}
                         onChange={(e) => setFormData(prev => ({
                           ...prev,
-                          material_7b: {
-                            ...prev.material_7b,
-                            [key]: { ...(prev.material_7b?.[key] || {}), status: e.target.value }
-                          }
+                          pre_paperwork_7a: { ...prev.pre_paperwork_7a, [key]: e.target.value }
                         }))}
                         className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
                       >
                         <option value="">Select...</option>
-                        <option value="yes">Yes</option>
-                        <option value="no">No</option>
+                        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
-                    <div className="col-span-2">
-                      <p className="text-[10px] text-gray-400">Date Order</p>
-                      <input
-                        type="date"
-                        value={formData.material_7b?.[key]?.date_order || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          material_7b: {
-                            ...prev.material_7b,
-                            [key]: { ...(prev.material_7b?.[key] || {}), date_order: e.target.value }
-                          }
-                        }))}
-                        className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
-                      />
+                  ))}
+
+                  {/* Add More Evidence - similar to screen 3B */}
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-tight">Add More Evidence</h4>
+                      <div className="flex gap-2">
+                        {templatesData?.data?.length > 0 && (
+                          <select
+                            className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const template = templatesData.data.find(t => t.id == e.target.value);
+                                if (template) {
+                                  handleApplyTemplate('pre_paperwork_7a.add_more_evidence', template);
+                                }
+                                e.target.value = "";
+                              }
+                            }}
+                          >
+                            <option value="">Fetch Template...</option>
+                            {templatesData.data.map(t => (
+                              <option key={t.id} value={t.id}>{t.template_name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addGroupWithPath('pre_paperwork_7a.add_more_evidence')}
+                          className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add Group
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-
-                {/* Scaffolding Date */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Scaffolding Date</label>
-                  <input
-                    type="text"
-                    value={formData.material_7b?.scaffolding_date || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      material_7b: { ...prev.material_7b, scaffolding_date: e.target.value }
-                    }))}
-                    placeholder="Enter scaffolding date..."
-                    className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
-                  />
-                </div>
-
-                {/* Add More Evidence for 7B */}
-                <div className="mt-4 pt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        material_7b: {
-                          ...prev.material_7b,
-                          add_more_evidence: [
-                            ...(prev.material_7b?.add_more_evidence || []),
-                            { main_folder: '', documents: [] }
-                          ]
-                        }
-                      }))}
-                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      + Add Group
-                    </button>
-                  </div>
-                  {(formData.material_7b?.add_more_evidence || []).map((group, gi) => (
-                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
-                      <div className="flex justify-between items-center mb-1">
-                        <input
-                          type="text"
-                          placeholder="Folder name..."
-                          value={group.main_folder || ''}
-                          onChange={(e) => setFormData(prev => {
-                            const arr = [...(prev.material_7b?.add_more_evidence || [])];
-                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
-                            return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
+                    {(formData.pre_paperwork_7a?.add_more_evidence || []).map((group, gi) => (
+                      <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                        <div className="flex justify-between items-center mb-1">
+                          <input
+                            type="text"
+                            placeholder="Folder name..."
+                            value={group.main_folder || ''}
+                            onChange={(e) => setFormData(prev => {
+                              const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
+                              arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                              return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
+                            })}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => {
+                              const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
+                              arr.splice(gi, 1);
+                              return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
+                            })}
+                            className="text-red-500 hover:text-red-700 ml-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAsTemplate(group)}
+                            className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors ml-2"
+                          >
+                            <Copy className="w-2.5 h-2.5" /> Save
+                          </button>
+                        </div>
+                        <table className="w-full text-[10px] border border-gray-200 rounded">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left border-r">Name</th>
+                              <th className="px-2 py-1 text-left border-r">Status</th>
+                              <th className="px-2 py-1 text-left border-r">Issue</th>
+                              <th className="px-2 py-1 text-center w-6"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(group.documents || []).map((doc, di) => (
+                              <tr key={di} className="border-t border-gray-100">
+                                <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                                <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                                <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                                <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => {
+                            const arr = [...(prev.pre_paperwork_7a?.add_more_evidence || [])];
+                            const g = { ...arr[gi] };
+                            g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }];
+                            arr[gi] = g;
+                            return { ...prev, pre_paperwork_7a: { ...prev.pre_paperwork_7a, add_more_evidence: arr } };
                           })}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                          className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100"
+                        >
+                          + Add Row
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            }
+
+            {/* Screen 7B: Material */}
+            {
+              currentStep === '7B' && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Material</h3>
+
+                  {/* Material rows: status yes/no + date */}
+                  {[
+                    { label: 'Solar', key: 'solar' },
+                    { label: 'ASHP', key: 'ashp' },
+                    { label: 'Boiler and HC', key: 'boiler_hc' },
+                    { label: 'Loft', key: 'loft' },
+                    { label: 'Scaffolding Order', key: 'scaffolding_order' },
+                  ].map(({ label, key }) => (
+                    <div key={key} className="grid grid-cols-3 gap-3 items-end">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+                        <p className="text-[10px] text-gray-400">Status</p>
+                        <select
+                          value={formData.material_7b?.[key]?.status || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            material_7b: {
+                              ...prev.material_7b,
+                              [key]: { ...(prev.material_7b?.[key] || {}), status: e.target.value }
+                            }
+                          }))}
+                          className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
+                        >
+                          <option value="">Select...</option>
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[10px] text-gray-400">Date Order</p>
+                        <input
+                          type="date"
+                          value={formData.material_7b?.[key]?.date_order || ''}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            material_7b: {
+                              ...prev.material_7b,
+                              [key]: { ...(prev.material_7b?.[key] || {}), date_order: e.target.value }
+                            }
+                          }))}
+                          className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
                         />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Scaffolding Date */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Scaffolding Date</label>
+                    <input
+                      type="text"
+                      value={formData.material_7b?.scaffolding_date || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        material_7b: { ...prev.material_7b, scaffolding_date: e.target.value }
+                      }))}
+                      placeholder="Enter scaffolding date..."
+                      className="block w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  {/* Add More Evidence for 7B */}
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-tight">Add More Evidence</h4>
+                      <div className="flex gap-2">
+                        {templatesData?.data?.length > 0 && (
+                          <select
+                            className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const template = templatesData.data.find(t => t.id == e.target.value);
+                                if (template) {
+                                  handleApplyTemplate('material_7b.add_more_evidence', template);
+                                }
+                                e.target.value = "";
+                              }
+                            }}
+                          >
+                            <option value="">Fetch Template...</option>
+                            {templatesData.data.map(t => (
+                              <option key={t.id} value={t.id}>{t.template_name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addGroupWithPath('material_7b.add_more_evidence')}
+                          className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add Group
+                        </button>
+                      </div>
+                    </div>
+                    {(formData.material_7b?.add_more_evidence || []).map((group, gi) => (
+                      <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                        <div className="flex justify-between items-center mb-1">
+                          <input
+                            type="text"
+                            placeholder="Folder name..."
+                            value={group.main_folder || ''}
+                            onChange={(e) => setFormData(prev => {
+                              const arr = [...(prev.material_7b?.add_more_evidence || [])];
+                              arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                              return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
+                            })}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => {
+                              const arr = [...(prev.material_7b?.add_more_evidence || [])];
+                              arr.splice(gi, 1);
+                              return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
+                            })}
+                            className="text-red-500 hover:text-red-700 ml-1"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAsTemplate(group)}
+                            className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors ml-2"
+                          >
+                            <Copy className="w-2.5 h-2.5" /> Save
+                          </button>
+                        </div>
+                        <table className="w-full text-[10px] border border-gray-200 rounded">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left border-r">Name</th>
+                              <th className="px-2 py-1 text-left border-r">Status</th>
+                              <th className="px-2 py-1 text-left border-r">Issue</th>
+                              <th className="px-2 py-1 text-center w-6"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(group.documents || []).map((doc, di) => (
+                              <tr key={di} className="border-t border-gray-100">
+                                <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                                <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                                <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                                <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                         <button
                           type="button"
                           onClick={() => setFormData(prev => {
                             const arr = [...(prev.material_7b?.add_more_evidence || [])];
-                            arr.splice(gi, 1);
+                            const g = { ...arr[gi] };
+                            g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }];
+                            arr[gi] = g;
                             return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
                           })}
-                          className="text-red-500 hover:text-red-700 ml-1"
+                          className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          + Add Row
                         </button>
                       </div>
-                      <table className="w-full text-[10px] border border-gray-200 rounded">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left border-r">Name</th>
-                            <th className="px-2 py-1 text-left border-r">Status</th>
-                            <th className="px-2 py-1 text-left border-r">Issue</th>
-                            <th className="px-2 py-1 text-center w-6"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(group.documents || []).map((doc, di) => (
-                            <tr key={di} className="border-t border-gray-100">
-                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
-                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
-                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
-                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.material_7b?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <button
-                        type="button"
-                        onClick={() => setFormData(prev => {
-                          const arr = [...(prev.material_7b?.add_more_evidence || [])];
-                          const g = { ...arr[gi] };
-                          g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }];
-                          arr[gi] = g;
-                          return { ...prev, material_7b: { ...prev.material_7b, add_more_evidence: arr } };
-                        })}
-                        className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100"
-                      >
-                        + Add Row
-                      </button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {/* Screen 8: Installation Requirements */}
-            {currentStep === 8 && (
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800 mb-1 border-b border-gray-200 pb-2">Installation Requirements</h3>
-                  <p className="text-[11px] text-gray-500 mb-3">Include all C2 packs requirement, based in measure</p>
-                </div>
-
-                {/* Notes / text field */}
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    value={formData.installation_requirements_8?.notes || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      installation_requirements_8: { ...prev.installation_requirements_8, notes: e.target.value }
-                    }))}
-                    rows={4}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y"
-                    placeholder="Enter installation requirements notes..."
-                  />
-                </div>
-
-                {/* Add More Evidence */}
-                <div className="mt-2 pt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        installation_requirements_8: {
-                          ...prev.installation_requirements_8,
-                          add_more_evidence: [
-                            ...(prev.installation_requirements_8?.add_more_evidence || []),
-                            { main_folder: '', documents: [] }
-                          ]
-                        }
-                      }))}
-                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      + Add Group
-                    </button>
+            {
+              currentStep === 8 && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-800 mb-1 border-b border-gray-200 pb-2">Installation Requirements</h3>
+                    <p className="text-[11px] text-gray-500 mb-3">Include all C2 packs requirement, based in measure</p>
                   </div>
-                  {(formData.installation_requirements_8?.add_more_evidence || []).map((group, gi) => (
-                    <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
-                      <div className="flex justify-between items-center mb-1">
-                        <input
-                          type="text"
-                          placeholder="Folder name..."
-                          value={group.main_folder || ''}
-                          onChange={(e) => setFormData(prev => {
-                            const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])];
-                            arr[gi] = { ...arr[gi], main_folder: e.target.value };
-                            return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } };
-                          })}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
-                        />
-                        <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; arr.splice(gi, 1); return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="text-red-500 hover:text-red-700 ml-1"><X className="w-3.5 h-3.5" /></button>
+
+                  {/* Notes / text field */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
+                    <textarea
+                      value={formData.installation_requirements_8?.notes || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        installation_requirements_8: { ...prev.installation_requirements_8, notes: e.target.value }
+                      }))}
+                      rows={4}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y"
+                      placeholder="Enter installation requirements notes..."
+                    />
+                  </div>
+
+                  {/* Add More Evidence */}
+                  <div className="mt-2 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-tight">Add More Evidence</h4>
+                      <div className="flex gap-2">
+                        {templatesData?.data?.length > 0 && (
+                          <select
+                            className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const template = templatesData.data.find(t => t.id == e.target.value);
+                                if (template) {
+                                  handleApplyTemplate('installation_requirements_8.add_more_evidence', template);
+                                }
+                                e.target.value = "";
+                              }
+                            }}
+                          >
+                            <option value="">Fetch Template...</option>
+                            {templatesData.data.map(t => (
+                              <option key={t.id} value={t.id}>{t.template_name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => addGroupWithPath('installation_requirements_8.add_more_evidence')}
+                          className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Add Group
+                        </button>
                       </div>
-                      <table className="w-full text-[10px] border border-gray-200 rounded">
-                        <thead className="bg-gray-100"><tr><th className="px-2 py-1 text-left border-r">Name</th><th className="px-2 py-1 text-left border-r">Status</th><th className="px-2 py-1 text-left border-r">Issue</th><th className="px-2 py-1 text-center w-6"></th></tr></thead>
-                        <tbody>
-                          {(group.documents || []).map((doc, di) => (
-                            <tr key={di} className="border-t border-gray-100">
-                              <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
-                              <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
-                              <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
-                              <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }]; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">+ Add Row</button>
                     </div>
-                  ))}
+                    {(formData.installation_requirements_8?.add_more_evidence || []).map((group, gi) => (
+                      <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
+                        <div className="flex justify-between items-center mb-1">
+                          <input
+                            type="text"
+                            placeholder="Folder name..."
+                            value={group.main_folder || ''}
+                            onChange={(e) => setFormData(prev => {
+                              const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])];
+                              arr[gi] = { ...arr[gi], main_folder: e.target.value };
+                              return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } };
+                            })}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
+                          />
+                          <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; arr.splice(gi, 1); return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="text-red-500 hover:text-red-700 ml-1"><X className="w-3.5 h-3.5" /></button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAsTemplate(group)}
+                            className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors ml-2"
+                          >
+                            <Copy className="w-2.5 h-2.5" /> Save
+                          </button>
+                        </div>
+                        <table className="w-full text-[10px] border border-gray-200 rounded">
+                          <thead className="bg-gray-100"><tr><th className="px-2 py-1 text-left border-r">Name</th><th className="px-2 py-1 text-left border-r">Status</th><th className="px-2 py-1 text-left border-r">Issue</th><th className="px-2 py-1 text-center w-6"></th></tr></thead>
+                          <tbody>
+                            {(group.documents || []).map((doc, di) => (
+                              <tr key={di} className="border-t border-gray-100">
+                                <td className="px-2 py-1 border-r"><input value={doc.name || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], name: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                                <td className="px-2 py-1 border-r"><select value={doc.status || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], status: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none"><option value="">Select...</option><option value="Done">Done</option><option value="Pending">Pending</option><option value="Not Required">Not Required</option></select></td>
+                                <td className="px-2 py-1 border-r"><input value={doc.issue || ''} onChange={(e) => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs[di] = { ...docs[di], issue: e.target.value }; g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full bg-transparent outline-none" /></td>
+                                <td className="px-2 py-1 text-center"><button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; const docs = [...(g.documents || [])]; docs.splice(di, 1); g.documents = docs; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })}><X className="w-3.5 h-3.5 text-red-400 hover:text-red-600 mx-auto" /></button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.installation_requirements_8?.add_more_evidence || [])]; const g = { ...arr[gi] }; g.documents = [...(g.documents || []), { name: '', status: '', issue: '' }]; arr[gi] = g; return { ...prev, installation_requirements_8: { ...prev.installation_requirements_8, add_more_evidence: arr } }; })} className="w-full py-1 text-[10px] text-blue-600 font-bold bg-blue-50/50 hover:bg-blue-100/50 border-t border-gray-100">+ Add Row</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {/* Screen 9: Internal C3 Requirements */}
             {currentStep === 9 && (
@@ -2656,23 +2914,36 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                 {/* Add More Evidence */}
                 <div className="mt-2 pt-3 border-t border-gray-200">
                   <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-xs font-semibold text-gray-700">Add More Evidence</h4>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({
-                        ...prev,
-                        internal_c3_requirements_9: {
-                          ...prev.internal_c3_requirements_9,
-                          add_more_evidence: [
-                            ...(prev.internal_c3_requirements_9?.add_more_evidence || []),
-                            { main_folder: '', documents: [] }
-                          ]
-                        }
-                      }))}
-                      className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      + Add Group
-                    </button>
+                    <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-tight">Add More Evidence</h4>
+                    <div className="flex gap-2">
+                      {templatesData?.data?.length > 0 && (
+                        <select
+                          className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const template = templatesData.data.find(t => t.id == e.target.value);
+                              if (template) {
+                                handleApplyTemplate('internal_c3_requirements_9.add_more_evidence', template);
+                              }
+                              e.target.value = "";
+                            }
+                          }}
+                        >
+                          <option value="">Fetch Template...</option>
+                          {templatesData.data.map(t => (
+                            <option key={t.id} value={t.id}>{t.template_name}</option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => addGroupWithPath('internal_c3_requirements_9.add_more_evidence')}
+                        className="px-2 py-1 bg-blue-600 text-white font-bold rounded text-[10px] hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add Group
+                      </button>
+                    </div>
                   </div>
                   {(formData.internal_c3_requirements_9?.add_more_evidence || []).map((group, gi) => (
                     <div key={gi} className="mb-3 p-2 border border-gray-200 rounded bg-gray-50">
@@ -2689,6 +2960,13 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                           className="text-xs px-2 py-1 border border-gray-300 rounded w-full mr-2"
                         />
                         <button type="button" onClick={() => setFormData(prev => { const arr = [...(prev.internal_c3_requirements_9?.add_more_evidence || [])]; arr.splice(gi, 1); return { ...prev, internal_c3_requirements_9: { ...prev.internal_c3_requirements_9, add_more_evidence: arr } }; })} className="text-red-500 hover:text-red-700 ml-1"><X className="w-3.5 h-3.5" /></button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveAsTemplate(group)}
+                          className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors ml-2"
+                        >
+                          <Copy className="w-2.5 h-2.5" /> Save
+                        </button>
                       </div>
                       <table className="w-full text-[10px] border border-gray-200 rounded">
                         <thead className="bg-gray-100"><tr><th className="px-2 py-1 text-left border-r">Name</th><th className="px-2 py-1 text-left border-r">Status</th><th className="px-2 py-1 text-left border-r">Issue</th><th className="px-2 py-1 text-center w-6"></th></tr></thead>
@@ -2708,662 +2986,701 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
                   ))}
                 </div>
               </div>
-            )}
+            )
+            }
 
             {/* Step 5: Floor Details & Totals (Old Screen 6) */}
-            {currentStep == 5 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-1">Floor Details & Totals</h3>
+            {
+              currentStep == 5 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">Floor Details & Totals</h3>
 
-                <div className="space-y-1">
-                  {(Array.isArray(formData.floor_details) ? formData.floor_details : []).map((row, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
-                      <div className="col-span-3">
-                        <label className="block text-[10px] font-medium text-gray-500">Name</label>
-                        <input value={row.name || ""} onChange={(e) => updateFloorRow(idx, 'name', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" readOnly={idx < FIXED_FLOOR_NAMES.length} />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-[10px] font-medium text-gray-500">Area</label>
-                        <input type="number" step="0.01" value={row.area ?? ""} onChange={(e) => updateFloorRow(idx, 'area', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-[10px] font-medium text-gray-500">Height</label>
-                        <input type="number" step="0.01" value={row.height ?? ""} onChange={(e) => updateFloorRow(idx, 'height', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                      </div>
-                      <div className="col-span-1">
-                        <label className="block text-[10px] font-medium text-gray-500">HLP</label>
-                        <input type="number" step="0.01" value={row.hlp ?? ""} onChange={(e) => updateFloorRow(idx, 'hlp', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                      </div>
-                      <div className="col-span-1">
-                        <label className="block text-[10px] font-medium text-gray-500">PW</label>
-                        <input type="number" step="0.01" value={row.pw ?? ""} onChange={(e) => updateFloorRow(idx, 'pw', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-[10px] font-medium text-gray-500">Notes</label>
-                        <input value={row.notes || ""} onChange={(e) => updateFloorRow(idx, 'notes', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                      </div>
-                      <div className="col-span-1 flex items-center justify-center">
-                        {idx >= FIXED_FLOOR_NAMES.length ? (
-                          <button type="button" onClick={() => { setFormData(prev => { const arr = [...(prev.floor_details || [])]; arr.splice(idx, 1); return { ...prev, floor_details: arr }; }); setTimeout(recalcFloorTotals, 0); }} className="text-[10px] text-red-600 p-0.5 hover:bg-red-50 rounded">✕</button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="pt-1">
-                    <button type="button" onClick={addFloorRow} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Row</button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 mt-2 bg-blue-50/30 p-1.5 rounded border border-blue-100">
-                  <div>
-                    <label className="block text-[10px] font-medium text-blue-800">Total EPC Area</label>
-                    <input readOnly value={formData.total_epc_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-blue-800">Floor Area (ExRIR)</label>
-                    <input readOnly value={formData.total_floor_area_excluding_rir ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-blue-800">Ground Floor Area</label>
-                    <input readOnly value={formData.total_ground_floor_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 mt-1 bg-blue-50/30 p-1.5 rounded border border-blue-100">
-                  <div>
-                    <label className="block text-[10px] font-medium text-blue-800">Highest Floor</label>
-                    <input readOnly value={formData.highest_floor_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-blue-800">Total HLP</label>
-                    <input readOnly value={formData.total_hlp ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-blue-800">Wall Area (Demand)</label>
-                    <input readOnly value={formData.heat_demand_total_wall_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-2 border-t">
-                  <h4 className="text-[11px] font-semibold text-gray-700 mb-1.5">Loft Details</h4>
                   <div className="space-y-1">
-                    {(Array.isArray(formData.loft_details) ? formData.loft_details : []).map((r, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
-                        <div className="col-span-5">
-                          <label className="block text-[10px] font-medium text-gray-500">Name</label>
-                          <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, loft_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                        </div>
+                    {(Array.isArray(formData.floor_details) ? formData.floor_details : []).map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
                         <div className="col-span-3">
-                          <label className="block text-[10px] font-medium text-gray-500">Area</label>
-                          <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, loft_details: arr }; }); setTimeout(recalcLoftTotals, 0); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          <label className="block text-[10px] font-medium text-gray-500">Name</label>
+                          <input value={row.name || ""} onChange={(e) => updateFloorRow(idx, 'name', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" readOnly={idx < FIXED_FLOOR_NAMES.length} />
                         </div>
-                        <div className="col-span-4">
-                          <label className="block text-[10px] font-medium text-gray-500">Type</label>
-                          <input value={r.type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), type: v }; return { ...prev, loft_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        <div className="col-span-2">
+                          <label className="block text-[10px] font-medium text-gray-500">Area</label>
+                          <input type="number" step="0.01" value={row.area ?? ""} onChange={(e) => updateFloorRow(idx, 'area', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-[10px] font-medium text-gray-500">Height</label>
+                          <input type="number" step="0.01" value={row.height ?? ""} onChange={(e) => updateFloorRow(idx, 'height', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-1">
+                          <label className="block text-[10px] font-medium text-gray-500">HLP</label>
+                          <input type="number" step="0.01" value={row.hlp ?? ""} onChange={(e) => updateFloorRow(idx, 'hlp', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-1">
+                          <label className="block text-[10px] font-medium text-gray-500">PW</label>
+                          <input type="number" step="0.01" value={row.pw ?? ""} onChange={(e) => updateFloorRow(idx, 'pw', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-[10px] font-medium text-gray-500">Notes</label>
+                          <input value={row.notes || ""} onChange={(e) => updateFloorRow(idx, 'notes', e.target.value)} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center">
+                          {idx >= FIXED_FLOOR_NAMES.length ? (
+                            <button type="button" onClick={() => { setFormData(prev => { const arr = [...(prev.floor_details || [])]; arr.splice(idx, 1); return { ...prev, floor_details: arr }; }); setTimeout(recalcFloorTotals, 0); }} className="text-[10px] text-red-600 p-0.5 hover:bg-red-50 rounded">✕</button>
+                          ) : null}
                         </div>
                       </div>
                     ))}
-                    <div>
-                      <button type="button" onClick={() => { setFormData(prev => ({ ...prev, loft_details: [...(prev.loft_details || []), { name: "", area: null, type: "" }] })); setTimeout(recalcLoftTotals, 0); }} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Loft Row</button>
+
+                    <div className="pt-1">
+                      <button type="button" onClick={addFloorRow} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Row</button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <div className="bg-emerald-50/30 p-1 rounded border border-emerald-100">
-                      <label className="block text-[10px] font-medium text-emerald-800">Total Loft</label>
-                      <input readOnly value={formData.total_loft ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-emerald-200 rounded bg-white font-bold" />
-                    </div>
-                    <div className="bg-emerald-50/30 p-1 rounded border border-emerald-100">
-                      <label className="block text-[10px] font-medium text-emerald-800">B/A</label>
-                      <input readOnly value={formData.ba ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-emerald-200 rounded bg-white font-bold" />
+                  <div className="grid grid-cols-3 gap-2 mt-2 bg-blue-50/30 p-1.5 rounded border border-blue-100">
+                    <div>
+                      <label className="block text-[10px] font-medium text-blue-800">Total EPC Area</label>
+                      <input readOnly value={formData.total_epc_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-medium text-gray-600">POPT (edit)</label>
-                      <input type="number" step="0.01" value={formData.popt ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, popt: e.target.value === "" ? null : parseFloat(e.target.value) }))} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                      <label className="block text-[10px] font-medium text-blue-800">Floor Area (ExRIR)</label>
+                      <input readOnly value={formData.total_floor_area_excluding_rir ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-blue-800">Ground Floor Area</label>
+                      <input readOnly value={formData.total_ground_floor_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-3 pt-2 border-t">
-                  <h4 className="text-[11px] font-semibold text-gray-700 mb-1.5">Wall Extension Details</h4>
-                  <div className="space-y-1">
-                    {(Array.isArray(formData.wall_ext_details) ? formData.wall_ext_details : []).map((r, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
-                        <div className="col-span-4">
-                          <label className="block text-[10px] font-medium text-gray-500">Name</label>
-                          <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, wall_ext_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                  <div className="grid grid-cols-3 gap-2 mt-1 bg-blue-50/30 p-1.5 rounded border border-blue-100">
+                    <div>
+                      <label className="block text-[10px] font-medium text-blue-800">Highest Floor</label>
+                      <input readOnly value={formData.highest_floor_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-blue-800">Total HLP</label>
+                      <input readOnly value={formData.total_hlp ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-blue-800">Wall Area (Demand)</label>
+                      <input readOnly value={formData.heat_demand_total_wall_area ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-blue-200 rounded bg-white font-bold" />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-2 border-t">
+                    <h4 className="text-[11px] font-semibold text-gray-700 mb-1.5">Loft Details</h4>
+                    <div className="space-y-1">
+                      {(Array.isArray(formData.loft_details) ? formData.loft_details : []).map((r, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
+                          <div className="col-span-5">
+                            <label className="block text-[10px] font-medium text-gray-500">Name</label>
+                            <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, loft_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          </div>
+                          <div className="col-span-3">
+                            <label className="block text-[10px] font-medium text-gray-500">Area</label>
+                            <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, loft_details: arr }; }); setTimeout(recalcLoftTotals, 0); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          </div>
+                          <div className="col-span-4">
+                            <label className="block text-[10px] font-medium text-gray-500">Type</label>
+                            <input value={r.type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.loft_details || [])]; arr[i] = { ...(arr[i] || {}), type: v }; return { ...prev, loft_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          </div>
                         </div>
-                        <div className="col-span-3">
-                          <label className="block text-[10px] font-medium text-gray-500">Area</label>
-                          <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, wall_ext_details: arr }; }); setTimeout(recalcWallTotals, 0); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                        </div>
-                        <div className="col-span-5">
-                          <label className="block text-[10px] font-medium text-gray-500">Construction</label>
-                          <input value={r.construction_type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), construction_type: v }; return { ...prev, wall_ext_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
-                        </div>
+                      ))}
+                      <div>
+                        <button type="button" onClick={() => { setFormData(prev => ({ ...prev, loft_details: [...(prev.loft_details || []), { name: "", area: null, type: "" }] })); setTimeout(recalcLoftTotals, 0); }} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Loft Row</button>
                       </div>
-                    ))}
-                    <div>
-                      <button type="button" onClick={() => { setFormData(prev => ({ ...prev, wall_ext_details: [...(prev.wall_ext_details || []), { name: "", area: null, construction_type: "" }] })); setTimeout(recalcWallTotals, 0); }} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Wall Row</button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <div className="bg-emerald-50/30 p-1 rounded border border-emerald-100">
+                        <label className="block text-[10px] font-medium text-emerald-800">Total Loft</label>
+                        <input readOnly value={formData.total_loft ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-emerald-200 rounded bg-white font-bold" />
+                      </div>
+                      <div className="bg-emerald-50/30 p-1 rounded border border-emerald-100">
+                        <label className="block text-[10px] font-medium text-emerald-800">B/A</label>
+                        <input readOnly value={formData.ba ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-emerald-200 rounded bg-white font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-600">POPT (edit)</label>
+                        <input type="number" step="0.01" value={formData.popt ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, popt: e.target.value === "" ? null : parseFloat(e.target.value) }))} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded" />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
-                      <label className="block text-[10px] font-medium text-amber-800">Solid Wall Area</label>
-                      <input type="number" step="0.01" value={formData.solid_wall_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, solid_wall_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white" />
+                  <div className="mt-3 pt-2 border-t">
+                    <h4 className="text-[11px] font-semibold text-gray-700 mb-1.5">Wall Extension Details</h4>
+                    <div className="space-y-1">
+                      {(Array.isArray(formData.wall_ext_details) ? formData.wall_ext_details : []).map((r, i) => (
+                        <div key={i} className="grid grid-cols-12 gap-1.5 items-end bg-gray-50/50 p-1 rounded">
+                          <div className="col-span-4">
+                            <label className="block text-[10px] font-medium text-gray-500">Name</label>
+                            <input value={r.name || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), name: v }; return { ...prev, wall_ext_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          </div>
+                          <div className="col-span-3">
+                            <label className="block text-[10px] font-medium text-gray-500">Area</label>
+                            <input type="number" step="0.01" value={r.area ?? ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), area: v === "" ? null : parseFloat(v) }; return { ...prev, wall_ext_details: arr }; }); setTimeout(recalcWallTotals, 0); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          </div>
+                          <div className="col-span-5">
+                            <label className="block text-[10px] font-medium text-gray-500">Construction</label>
+                            <input value={r.construction_type || ""} onChange={(e) => { const v = e.target.value; setFormData(prev => { const arr = [...(prev.wall_ext_details || [])]; arr[i] = { ...(arr[i] || {}), construction_type: v }; return { ...prev, wall_ext_details: arr }; }); }} className="block w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white" />
+                          </div>
+                        </div>
+                      ))}
+                      <div>
+                        <button type="button" onClick={() => { setFormData(prev => ({ ...prev, wall_ext_details: [...(prev.wall_ext_details || []), { name: "", area: null, construction_type: "" }] })); setTimeout(recalcWallTotals, 0); }} className="px-2 py-0.5 bg-gray-100 text-[10px] border border-gray-300 text-gray-600 rounded hover:bg-gray-200 transition-colors">+ Add Wall Row</button>
+                      </div>
                     </div>
-                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
-                      <label className="block text-[10px] font-medium text-amber-800">Glazed Area</label>
-                      <input type="number" step="0.01" value={formData.glazed_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, glazed_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white" />
-                    </div>
-                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
-                      <label className="block text-[10px] font-medium text-amber-800">Wall Exc Win PICI</label>
-                      <input readOnly value={formData.wall_excluding_windows_pici ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white font-bold" />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-1">
-                    <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
-                      <label className="block text-[10px] font-medium text-amber-800">Total Wall PICI</label>
-                      <input readOnly value={formData.total_wall_pici ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white font-bold" />
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                        <label className="block text-[10px] font-medium text-amber-800">Solid Wall Area</label>
+                        <input type="number" step="0.01" value={formData.solid_wall_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, solid_wall_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white" />
+                      </div>
+                      <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                        <label className="block text-[10px] font-medium text-amber-800">Glazed Area</label>
+                        <input type="number" step="0.01" value={formData.glazed_area ?? ""} onChange={(e) => setFormData(prev => ({ ...prev, glazed_area: e.target.value === "" ? null : parseFloat(e.target.value) }))} onBlur={() => setTimeout(recalcWallTotals, 0)} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white" />
+                      </div>
+                      <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                        <label className="block text-[10px] font-medium text-amber-800">Wall Exc Win PICI</label>
+                        <input readOnly value={formData.wall_excluding_windows_pici ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white font-bold" />
+                      </div>
                     </div>
-                    <div className="bg-gray-100 p-1 rounded border border-gray-200 opacity-50">
-                      <label className="block text-[10px] font-medium text-gray-400">(spare)</label>
-                      <input readOnly value={""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white" />
-                    </div>
-                    <div className="bg-gray-100 p-1 rounded border border-gray-200">
-                      <label className="block text-[10px] font-medium text-gray-600">POPT (mirror)</label>
-                      <input readOnly value={formData.popt ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white" />
+
+                    <div className="grid grid-cols-3 gap-2 mt-1">
+                      <div className="bg-amber-50/30 p-1 rounded border border-amber-100">
+                        <label className="block text-[10px] font-medium text-amber-800">Total Wall PICI</label>
+                        <input readOnly value={formData.total_wall_pici ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-amber-200 rounded bg-white font-bold" />
+                      </div>
+                      <div className="bg-gray-100 p-1 rounded border border-gray-200 opacity-50">
+                        <label className="block text-[10px] font-medium text-gray-400">(spare)</label>
+                        <input readOnly value={""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white" />
+                      </div>
+                      <div className="bg-gray-100 p-1 rounded border border-gray-200">
+                        <label className="block text-[10px] font-medium text-gray-600">POPT (mirror)</label>
+                        <input readOnly value={formData.popt ?? ""} className="mt-0.5 block w-full px-2 py-1 text-xs border border-gray-300 rounded bg-white" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {/* Step 6: Installation Approval & Notes */}
-            {currentStep == 6 && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Installation Approval</h3>
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => handleNestedInput('installation_approval', 'status', null, 'Approve for Installation', false)}
-                    className={`py-2 px-4 rounded text-sm font-semibold transition-colors ${formData.installation_approval?.status === 'Approve for Installation'
-                      ? 'bg-green-600 text-white shadow-inner border border-green-700'
-                      : 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-300'
-                      }`}
-                  >
-                    Approve for Installation
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleNestedInput('installation_approval', 'status', null, 'Request More information', false)}
-                    className={`py-2 px-4 rounded text-sm font-semibold transition-colors ${formData.installation_approval?.status === 'Request More information'
-                      ? 'bg-yellow-500 text-white shadow-inner border border-yellow-600'
-                      : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300'
-                      }`}
-                  >
-                    Request More information
-                  </button>
+            {
+              currentStep == 6 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 border-b border-gray-200 pb-2">Installation Approval</h3>
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleNestedInput('installation_approval', 'status', null, 'Approve for Installation', false)}
+                      className={`py-2 px-4 rounded text-sm font-semibold transition-colors ${formData.installation_approval?.status === 'Approve for Installation'
+                        ? 'bg-green-600 text-white shadow-inner border border-green-700'
+                        : 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-300'
+                        }`}
+                    >
+                      Approve for Installation
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleNestedInput('installation_approval', 'status', null, 'Request More information', false)}
+                      className={`py-2 px-4 rounded text-sm font-semibold transition-colors ${formData.installation_approval?.status === 'Request More information'
+                        ? 'bg-yellow-500 text-white shadow-inner border border-yellow-600'
+                        : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border border-yellow-300'
+                        }`}
+                    >
+                      Request More information
+                    </button>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Notes for this Stage</label>
+                    <textarea
+                      value={formData.installation_approval?.notes || ""}
+                      onChange={(e) => handleNestedInput('installation_approval', 'notes', null, e.target.value, false)}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y min-h-[80px]"
+                      placeholder="Enter notes here..."
+                    />
+                  </div>
                 </div>
-                <div className="mt-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Notes for this Stage</label>
-                  <textarea
-                    value={formData.installation_approval?.notes || ""}
-                    onChange={(e) => handleNestedInput('installation_approval', 'notes', null, e.target.value, false)}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:border-blue-500 outline-none resize-y min-h-[80px]"
-                    placeholder="Enter notes here..."
-                  />
-                </div>
-              </div>
-            )}
+              )
+            }
 
 
             {/* Step 10: Documents (Old Screen 7) */}
-            {currentStep == 10 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">Documents</h3>
+            {
+              currentStep == 10 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2">Documents</h3>
 
-                <div className="space-y-4">
-                  {(Array.isArray(formData.documents) ? formData.documents : []).map((group, gi) => {
-                    const services = Array.isArray(formData.services) ? formData.services.map(s => (s || "").toLowerCase()) : [];
-                    const isLoftService = services.some(s => s.includes("loft"));
-                    const isBoilerService = services.some(s => s.includes("boiler") || s.includes("ftch") || s.includes("hc") || s.includes("heating") || s.includes("control"));
+                  <div className="space-y-4">
+                    {(Array.isArray(formData.documents) ? formData.documents : []).map((group, gi) => {
+                      const services = Array.isArray(formData.services) ? formData.services.map(s => (s || "").toLowerCase()) : [];
+                      const isLoftService = services.some(s => s.includes("loft"));
+                      const isBoilerService = services.some(s => s.includes("boiler") || s.includes("ftch") || s.includes("hc") || s.includes("heating") || s.includes("control"));
 
-                    const folderName = group.main_folder || "";
+                      const folderName = group.main_folder || "";
 
-                    // Conditionally hide Submission Loft
-                    if (folderName === "Submission Loft" && !isLoftService) {
-                      return null;
-                    }
+                      // Conditionally hide Submission Loft
+                      if (folderName === "Submission Loft" && !isLoftService) {
+                        return null;
+                      }
 
-                    // Conditionally hide FTCH or HC or B
-                    if (folderName === "FTCH or HC or B" && !isBoilerService) {
-                      return null;
-                    }
+                      // Conditionally hide FTCH or HC or B
+                      if (folderName === "FTCH or HC or B" && !isBoilerService) {
+                        return null;
+                      }
 
-                    const colors = [
-                      "border-blue-400 bg-blue-50",
-                      "border-emerald-400 bg-emerald-50",
-                      "border-purple-400 bg-purple-50",
-                      "border-orange-400 bg-orange-50",
-                      "border-rose-400 bg-rose-50",
-                      "border-indigo-400 bg-indigo-50",
-                      "border-amber-400 bg-amber-50",
-                      "border-cyan-400 bg-cyan-50",
-                      "border-fuchsia-400 bg-fuchsia-50",
-                      "border-teal-400 bg-teal-50",
-                    ];
-                    const bgColors = [
-                      "bg-blue-100",
-                      "bg-emerald-100",
-                      "bg-purple-100",
-                      "bg-orange-100",
-                      "bg-rose-100",
-                      "bg-indigo-100",
-                      "bg-amber-100",
-                      "bg-cyan-100",
-                      "bg-fuchsia-100",
-                      "bg-teal-100",
-                    ];
-                    const colorClass = colors[gi % colors.length];
-                    const bgClass = bgColors[gi % bgColors.length];
+                      const colors = [
+                        "border-blue-400 bg-blue-50",
+                        "border-emerald-400 bg-emerald-50",
+                        "border-purple-400 bg-purple-50",
+                        "border-orange-400 bg-orange-50",
+                        "border-rose-400 bg-rose-50",
+                        "border-indigo-400 bg-indigo-50",
+                        "border-amber-400 bg-amber-50",
+                        "border-cyan-400 bg-cyan-50",
+                        "border-fuchsia-400 bg-fuchsia-50",
+                        "border-teal-400 bg-teal-50",
+                      ];
+                      const bgColors = [
+                        "bg-blue-100",
+                        "bg-emerald-100",
+                        "bg-purple-100",
+                        "bg-orange-100",
+                        "bg-rose-100",
+                        "bg-indigo-100",
+                        "bg-amber-100",
+                        "bg-cyan-100",
+                        "bg-fuchsia-100",
+                        "bg-teal-100",
+                      ];
+                      const colorClass = colors[gi % colors.length];
+                      const bgClass = bgColors[gi % bgColors.length];
 
-                    return (
-                      <div key={gi} className={`p-2 border rounded-md shadow-sm ${colorClass} transition-shadow hover:shadow-md text-xs`}>
-                        <div className="mb-2 pb-1 border-b border-gray-300/50">
-                          <div className="flex justify-between items-center mb-1">
-                            <label className="text-xs font-semibold text-gray-800">Main Folder</label>
-                            <button
-                              type="button"
-                              onClick={() => removeDocumentGroup(gi)}
-                              className="px-2 py-0.5 text-red-600 font-medium hover:bg-red-50 rounded transition-colors text-[10px] flex items-center gap-1"
-                            >
-                              <X className="w-3 h-3" />
-                              Remove Group
-                            </button>
+                      return (
+                        <div key={gi} className={`p-2 border rounded-md shadow-sm ${colorClass} transition-shadow hover:shadow-md text-xs`}>
+                          <div className="mb-2 pb-1 border-b border-gray-300/50">
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="text-xs font-semibold text-gray-800">Main Folder</label>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveAsTemplate(group)}
+                                  className="px-2 py-0.5 bg-emerald-600/10 text-emerald-700 border border-emerald-600/20 rounded text-[9px] hover:bg-emerald-600/20 flex items-center gap-1 transition-colors"
+                                >
+                                  <Copy className="w-2.5 h-2.5" /> Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeDocumentGroup(gi)}
+                                  className="px-2 py-0.5 text-red-600 font-medium hover:bg-red-50 rounded transition-colors text-[10px] flex items-center gap-1"
+                                >
+                                  <X className="w-3 h-3" />
+                                  Remove Group
+                                </button>
+                              </div>
+                            </div>
+                            <input
+                              type="text"
+                              value={group.main_folder || ""}
+                              onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)}
+                              className="block w-full px-2 py-1 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                            />
                           </div>
-                          <input
-                            type="text"
-                            value={group.main_folder || ""}
-                            onChange={(e) => updateDocumentGroup(gi, 'main_folder', e.target.value)}
-                            className="block w-full px-2 py-1 border border-white/50 bg-white/70 shadow-inner rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                          />
-                        </div>
 
-                        <div className="mt-2 overflow-x-auto bg-white rounded-sm shadow-sm border border-gray-100">
-                          <table className="w-full text-[11px] text-left border-collapse">
-                            <thead className={`${bgClass} uppercase text-gray-700 font-semibold border-b`}>
-                              <tr>
-                                <th className="px-2 py-1.5 border-r font-medium">Name</th>
-                                <th className="px-2 py-1.5 border-r font-medium w-32">Status</th>
-                                <th className="px-2 py-1.5 border-r font-medium">Issue</th>
-                                <th className="px-2 py-1.5 font-medium w-10 text-center">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
-                                <tr key={di} className="border-b hover:bg-gray-50/80 transition-colors last:border-b-0">
-                                  <td className="px-2 py-1 border-r bg-white align-top">
-                                    <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200" />
-                                  </td>
-                                  <td className="px-2 py-1 border-r bg-white align-top">
-                                    <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200">
-                                      <option value="">Select...</option>
-                                      <option value="Done">Done</option>
-                                      <option value="Pending">Pending</option>
-                                      <option value="Not Required">Not Required</option>
-                                      <option value="Pending Check">Pending Check</option>
-                                      <option value="Incomplete">Incomplete</option>
-                                      <option value="Errors">Errors</option>
-                                      <option value="Scan Remaining">Scan Remaining</option>
-                                      <option value="Signatures">Signatures</option>
-                                      <option value="KSDL">KSDL</option>
-                                      <option value="BLB">BLB</option>
-                                    </select>
-                                  </td>
-                                  <td className="px-2 py-1 border-r bg-white align-top">
-                                    <textarea
-                                      value={doc.issue || ""}
-                                      onChange={(e) => updateDocumentRow(gi, di, 'issue', e.target.value)}
-                                      className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200 resize-y min-h-[24px]"
-                                      rows="1"
-                                      placeholder="Note any issues..."
-                                    />
-                                  </td>
-                                  <td className="px-2 py-1 text-center bg-white align-top pt-1.5">
-                                    <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-red-400 hover:text-red-600 transition-colors">
-                                      <X className="w-4 h-4 mx-auto" />
-                                    </button>
-                                  </td>
+                          <div className="mt-2 overflow-x-auto bg-white rounded-sm shadow-sm border border-gray-100">
+                            <table className="w-full text-[11px] text-left border-collapse">
+                              <thead className={`${bgClass} uppercase text-gray-700 font-semibold border-b`}>
+                                <tr>
+                                  <th className="px-2 py-1.5 border-r font-medium">Name</th>
+                                  <th className="px-2 py-1.5 border-r font-medium w-32">Status</th>
+                                  <th className="px-2 py-1.5 border-r font-medium">Issue</th>
+                                  <th className="px-2 py-1.5 font-medium w-10 text-center">Action</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <div className="p-1.5 bg-gray-50 border-t flex justify-between items-center">
-                            <button type="button" onClick={() => addDocumentRow(gi)} className="px-3 py-1 bg-gray-200 text-gray-600 font-medium rounded text-[10px] hover:bg-gray-300 transition-colors shadow-sm">
-                              + Add Document
-                            </button>
+                              </thead>
+                              <tbody>
+                                {(Array.isArray(group.documents) ? group.documents : []).map((doc, di) => (
+                                  <tr key={di} className="border-b hover:bg-gray-50/80 transition-colors last:border-b-0">
+                                    <td className="px-2 py-1 border-r bg-white align-top">
+                                      <input type="text" value={doc.name || ""} onChange={(e) => updateDocumentRow(gi, di, 'name', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200" />
+                                    </td>
+                                    <td className="px-2 py-1 border-r bg-white align-top">
+                                      <select value={doc.status || ""} onChange={(e) => updateDocumentRow(gi, di, 'status', e.target.value)} className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200">
+                                        <option value="">Select...</option>
+                                        <option value="Done">Done</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="Not Required">Not Required</option>
+                                        <option value="Pending Check">Pending Check</option>
+                                        <option value="Incomplete">Incomplete</option>
+                                        <option value="Errors">Errors</option>
+                                        <option value="Scan Remaining">Scan Remaining</option>
+                                        <option value="Signatures">Signatures</option>
+                                        <option value="KSDL">KSDL</option>
+                                        <option value="BLB">BLB</option>
+                                      </select>
+                                    </td>
+                                    <td className="px-2 py-1 border-r bg-white align-top">
+                                      <textarea
+                                        value={doc.issue || ""}
+                                        onChange={(e) => updateDocumentRow(gi, di, 'issue', e.target.value)}
+                                        className="w-full px-1 py-0.5 border border-transparent rounded bg-transparent focus:bg-white focus:border-blue-200 resize-y min-h-[24px]"
+                                        rows="1"
+                                        placeholder="Note any issues..."
+                                      />
+                                    </td>
+                                    <td className="px-2 py-1 text-center bg-white align-top pt-1.5">
+                                      <button type="button" onClick={() => removeDocumentRow(gi, di)} className="text-red-400 hover:text-red-600 transition-colors">
+                                        <X className="w-4 h-4 mx-auto" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="p-1.5 bg-gray-50 border-t flex justify-between items-center">
+                              <button type="button" onClick={() => addDocumentRow(gi)} className="px-3 py-1 bg-gray-200 text-gray-600 font-medium rounded text-[10px] hover:bg-gray-300 transition-colors shadow-sm">
+                                + Add Document
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  <div>
-                    <button type="button" onClick={addDocumentGroup} className="px-3 py-1 bg-gray-200 rounded">Add Document Group</button>
+                    <div className="flex justify-between items-center">
+                      <button type="button" onClick={addDocumentGroup} className="px-3 py-1 bg-gray-200 rounded text-sm font-medium">Add Document Group</button>
+                      {templatesData?.data?.length > 0 && (
+                        <select
+                          className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-[10px] outline-none"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const template = templatesData.data.find(t => t.id == e.target.value);
+                              if (template) {
+                                handleApplyTemplate('documents', template);
+                              }
+                              e.target.value = "";
+                            }
+                          }}
+                        >
+                          <option value="">Fetch Template...</option>
+                          {templatesData.data.map(t => (
+                            <option key={t.id} value={t.id}>{t.template_name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            }
 
             {/* Screen 11A */}
-            {currentStep === '11A' && (
-              <div className="space-y-0 border border-gray-200 rounded overflow-hidden">
-                <table className="w-full text-xs border-collapse">
-                  <tbody>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700 w-1/2">EPR Check matching with everything one last time</td>
-                      <td className="p-2">
-                        <select
-                          name="epr_check_matching"
-                          value={formData.epr_check_matching || ""}
-                          onChange={handleInputChange}
-                          className={`w-full px-2 py-1 rounded border outline-none ${formData.epr_check_matching === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.epr_check_matching === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="Checked and Verified">Checked and Verified</option>
-                          <option value="Issues to resolve before submission">Issues to resolve before submission</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200">
-                      <td className="p-2 font-semibold text-gray-700">Installation Changes</td>
-                      <td className="p-2">
-                        <select
-                          name="installation_changes"
-                          value={formData.installation_changes || ""}
-                          onChange={handleInputChange}
-                          className={`w-full px-2 py-1 rounded border outline-none ${formData.installation_changes === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.installation_changes === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="Checked and Verified">Checked and Verified</option>
-                          <option value="Issues to resolve before submission">Issues to resolve before submission</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700">Pas 10 Changes any before final submit</td>
-                      <td className="p-2 flex gap-2">
-                        <select
-                          name="pas10_changes_before_submit"
-                          value={formData.pas10_changes_before_submit || ""}
-                          onChange={handleInputChange}
-                          className={`flex-1 px-2 py-1 rounded border outline-none ${formData.pas10_changes_before_submit === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.pas10_changes_before_submit === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="Checked and Verified">Checked and Verified</option>
-                          <option value="Issues to resolve before submission">Issues to resolve before submission</option>
-                        </select>
-                        <input
-                          type="text"
-                          name="pas10_changes_notes"
-                          value={formData.pas10_changes_notes || ""}
-                          onChange={handleInputChange}
-                          className="flex-1 px-2 py-1 border border-blue-400 rounded outline-none"
-                          placeholder="Notes..."
-                        />
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200">
-                      <td className="p-2 font-semibold text-gray-700">Updatig Master Sheets</td>
-                      <td className="p-2">
-                        <select
-                          name="updating_master_sheets"
-                          value={formData.updating_master_sheets || ""}
-                          onChange={handleInputChange}
-                          className={`w-full px-2 py-1 rounded border outline-none ${formData.updating_master_sheets === "pending" ? "bg-amber-500 text-white" : formData.updating_master_sheets === "This project is added in sheet" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="This project is added in sheet">This project is added in sheet</option>
-                          <option value="pending">pending</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700">Update in Tecnika order sheet</td>
-                      <td className="p-2 flex gap-2 items-center">
-                        <select
-                          name="update_tecnica_order_sheet"
-                          value={formData.update_tecnica_order_sheet || ""}
-                          onChange={handleInputChange}
-                          className={`flex-1 px-2 py-1 rounded border outline-none ${formData.update_tecnica_order_sheet === "pending" ? "bg-amber-500 text-white" : (formData.update_tecnica_order_sheet === "This project is added in sheet" || formData.update_tecnica_order_sheet === "Not required") ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="This project is added in sheet">This project is added in sheet</option>
-                          <option value="pending">pending</option>
-                          <option value="Not required">Not required</option>
-                        </select>
-                        <button type="button" className="px-2 py-1 bg-fuchsia-500 text-white rounded text-[10px] font-bold border border-fuchsia-600 hover:bg-fuchsia-600 whitespace-nowrap">
-                          Create C3 Order
-                        </button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="p-2 font-semibold text-gray-700">C3 Issues found internall or externally</td>
-                      <td className="p-2">
-                        <select
-                          name="c3_issues_found_internal"
-                          value={formData.c3_issues_found_internal || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 rounded border border-blue-300 bg-blue-50 text-blue-800 outline-none focus:border-blue-500"
-                        >
-                          <option value="">Select...</option>
-                          <option value="No issues">No issues</option>
-                          <option value="pending report">pending report</option>
-                          <option value="resolved">resolved</option>
-                        </select>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {
+              currentStep === '11A' && (
+                <div className="space-y-0 border border-gray-200 rounded overflow-hidden">
+                  <table className="w-full text-xs border-collapse">
+                    <tbody>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700 w-1/2">EPR Check matching with everything one last time</td>
+                        <td className="p-2">
+                          <select
+                            name="epr_check_matching"
+                            value={formData.epr_check_matching || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-2 py-1 rounded border outline-none ${formData.epr_check_matching === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.epr_check_matching === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="Checked and Verified">Checked and Verified</option>
+                            <option value="Issues to resolve before submission">Issues to resolve before submission</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-2 font-semibold text-gray-700">Installation Changes</td>
+                        <td className="p-2">
+                          <select
+                            name="installation_changes"
+                            value={formData.installation_changes || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-2 py-1 rounded border outline-none ${formData.installation_changes === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.installation_changes === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="Checked and Verified">Checked and Verified</option>
+                            <option value="Issues to resolve before submission">Issues to resolve before submission</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700">Pas 10 Changes any before final submit</td>
+                        <td className="p-2 flex gap-2">
+                          <select
+                            name="pas10_changes_before_submit"
+                            value={formData.pas10_changes_before_submit || ""}
+                            onChange={handleInputChange}
+                            className={`flex-1 px-2 py-1 rounded border outline-none ${formData.pas10_changes_before_submit === "Issues to resolve before submission" ? "bg-red-600 text-white" : formData.pas10_changes_before_submit === "Checked and Verified" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="Checked and Verified">Checked and Verified</option>
+                            <option value="Issues to resolve before submission">Issues to resolve before submission</option>
+                          </select>
+                          <input
+                            type="text"
+                            name="pas10_changes_notes"
+                            value={formData.pas10_changes_notes || ""}
+                            onChange={handleInputChange}
+                            className="flex-1 px-2 py-1 border border-blue-400 rounded outline-none"
+                            placeholder="Notes..."
+                          />
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-2 font-semibold text-gray-700">Updatig Master Sheets</td>
+                        <td className="p-2">
+                          <select
+                            name="updating_master_sheets"
+                            value={formData.updating_master_sheets || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-2 py-1 rounded border outline-none ${formData.updating_master_sheets === "pending" ? "bg-amber-500 text-white" : formData.updating_master_sheets === "This project is added in sheet" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="This project is added in sheet">This project is added in sheet</option>
+                            <option value="pending">pending</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700">Update in Tecnika order sheet</td>
+                        <td className="p-2 flex gap-2 items-center">
+                          <select
+                            name="update_tecnica_order_sheet"
+                            value={formData.update_tecnica_order_sheet || ""}
+                            onChange={handleInputChange}
+                            className={`flex-1 px-2 py-1 rounded border outline-none ${formData.update_tecnica_order_sheet === "pending" ? "bg-amber-500 text-white" : (formData.update_tecnica_order_sheet === "This project is added in sheet" || formData.update_tecnica_order_sheet === "Not required") ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="This project is added in sheet">This project is added in sheet</option>
+                            <option value="pending">pending</option>
+                            <option value="Not required">Not required</option>
+                          </select>
+                          <button type="button" className="px-2 py-1 bg-fuchsia-500 text-white rounded text-[10px] font-bold border border-fuchsia-600 hover:bg-fuchsia-600 whitespace-nowrap">
+                            Create C3 Order
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 font-semibold text-gray-700">C3 Issues found internall or externally</td>
+                        <td className="p-2">
+                          <select
+                            name="c3_issues_found_internal"
+                            value={formData.c3_issues_found_internal || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 rounded border border-blue-300 bg-blue-50 text-blue-800 outline-none focus:border-blue-500"
+                          >
+                            <option value="">Select...</option>
+                            <option value="No issues">No issues</option>
+                            <option value="pending report">pending report</option>
+                            <option value="resolved">resolved</option>
+                          </select>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
 
             {/* Screen 11B */}
-            {currentStep === '11B' && (
-              <div className="space-y-0 border border-gray-200 rounded overflow-hidden">
-                <table className="w-full text-xs border-collapse">
-                  <tbody>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700 w-1/3">Submission Status</td>
-                      <td className="p-2" colSpan="2">
-                        <select
-                          name="submission_status"
-                          value={formData.submission_status || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 rounded border border-emerald-300 bg-emerald-50 text-emerald-800 outline-none"
-                        >
-                          <option value="">Select...</option>
-                          <option value="Submitted for check">Submitted for check</option>
-                          <option value="pending submissions">pending submissions</option>
-                          <option value="onhold by funder">onhold by funder</option>
-                          <option value="onhold by office">onhold by office</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200">
-                      <td className="p-2 font-semibold text-gray-700">Queries Status</td>
-                      <td className="p-2" colSpan="2">
-                        <select
-                          name="queries_status"
-                          value={formData.queries_status || ""}
-                          onChange={handleInputChange}
-                          className={`w-full px-2 py-1 rounded border outline-none ${formData.queries_status === "pending" ? "bg-amber-500 text-white" : formData.queries_status === "Resolved" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="Resolved">Resolved</option>
-                          <option value="pending">pending</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700">Trustmark Lodgement</td>
-                      <td className="p-2" colSpan="2">
-                        <select
-                          name="lodgement"
-                          value={formData.lodgement || ""}
-                          onChange={handleInputChange}
-                          className={`w-full px-2 py-1 rounded border outline-none ${formData.lodgement === "Pending" ? "bg-amber-500 text-white" : formData.lodgement === "Done" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="Done">Done</option>
-                          <option value="Pending">Pending</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200">
-                      <td className="p-2 font-semibold text-gray-700 bg-gray-100">Trustmark_Project_Certificate</td>
-                      <td className="p-2" colSpan="2">
-                        <input
-                          type="text"
-                          name="trustmark_project_certificate"
-                          value={formData.trustmark_project_certificate || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 outline-none"
-                          placeholder="P123456789"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700 w-1/3">Tecnika</td>
-                      <td className="p-2" colSpan="2">
-                        <select
-                          name="tecnica"
-                          value={formData.tecnica || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
-                        >
-                          <option value="">Select...</option>
-                          <option value="Assigned">Assigned</option>
-                          <option value="Failed">Failed</option>
-                          <option value="Pass">Pass</option>
-                          <option value="Remedial Pending">Remedial Pending</option>
-                          <option value="ByPASS(Not required)">ByPASS(Not required)</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200">
-                      <td className="p-2 font-semibold text-gray-700">Scaffolding Removed</td>
-                      <td className="p-2">
-                        <select
-                          name="scaffolding_removed_status"
-                          value={formData.scaffolding_removed_status || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
-                        >
-                          <option value="">Select...</option>
-                          <option value="yes">yes</option>
-                          <option value="no">no</option>
-                        </select>
-                      </td>
-                      <td className="p-2 w-1/3">
-                        <input
-                          type="date"
-                          name="scaffolding_removed_date"
-                          value={formData.scaffolding_removed_date || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700">Rubbish Collected</td>
-                      <td className="p-2">
-                        <select
-                          name="rubbish_collected_status"
-                          value={formData.rubbish_collected_status || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
-                        >
-                          <option value="">Select...</option>
-                          <option value="yes">yes</option>
-                          <option value="no">no</option>
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="date"
-                          name="rubbish_collected_date"
-                          value={formData.rubbish_collected_date || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200">
-                      <td className="p-2 font-semibold text-gray-700">Customer Feed Back</td>
-                      <td className="p-2" colSpan="2">
-                        <textarea
-                          name="customer_feedback_notes"
-                          value={formData.customer_feedback_notes || ""}
-                          onChange={handleInputChange}
-                          rows="2"
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none resize-none"
-                          placeholder="Notes"
-                        />
-                      </td>
-                    </tr>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <td className="p-2 font-semibold text-gray-700 uppercase">Complete the project</td>
-                      <td className="p-2" colSpan="2">
-                        <select
-                          name="complete_the_project"
-                          value={formData.complete_the_project || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
-                        >
-                          <option value="">Select...</option>
-                          <option value="YES">YES</option>
-                          <option value="NO">NO</option>
-                        </select>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="p-2 align-top">
-                        <div className="font-semibold text-gray-700 uppercase">Final Comments</div>
-                        <div className="font-semibold text-gray-700 mt-4">Notes</div>
-                      </td>
-                      <td className="p-2 space-y-2" colSpan="2">
-                        <select
-                          name="final_comments"
-                          value={formData.final_comments || ""}
-                          onChange={handleInputChange}
-                          className={`w-full px-2 py-1 rounded border outline-none ${formData.final_comments === "Some issues not resolved" ? "bg-red-100 text-red-800 border-red-300" : "bg-gray-50 border-gray-300"}`}
-                        >
-                          <option value="">Select...</option>
-                          <option value="All Good Thanks">All Good Thanks</option>
-                          <option value="it was not perfect">it was not perfect</option>
-                          <option value="We'll come back">We'll come back</option>
-                          <option value="Some issues not resolved">Some issues not resolved</option>
-                          <option value="yes but customer was not ready">yes but customer was not ready</option>
-                        </select>
-                        <textarea
-                          name="final_notes"
-                          value={formData.final_notes || ""}
-                          onChange={handleInputChange}
-                          rows="2"
-                          className="w-full px-2 py-1 border border-gray-300 rounded outline-none resize-none"
-                          placeholder="Enter final notes..."
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {
+              currentStep === '11B' && (
+                <div className="space-y-0 border border-gray-200 rounded overflow-hidden">
+                  <table className="w-full text-xs border-collapse">
+                    <tbody>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700 w-1/3">Submission Status</td>
+                        <td className="p-2" colSpan="2">
+                          <select
+                            name="submission_status"
+                            value={formData.submission_status || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 rounded border border-emerald-300 bg-emerald-50 text-emerald-800 outline-none"
+                          >
+                            <option value="">Select...</option>
+                            <option value="Submitted for check">Submitted for check</option>
+                            <option value="pending submissions">pending submissions</option>
+                            <option value="onhold by funder">onhold by funder</option>
+                            <option value="onhold by office">onhold by office</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-2 font-semibold text-gray-700">Queries Status</td>
+                        <td className="p-2" colSpan="2">
+                          <select
+                            name="queries_status"
+                            value={formData.queries_status || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-2 py-1 rounded border outline-none ${formData.queries_status === "pending" ? "bg-amber-500 text-white" : formData.queries_status === "Resolved" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="pending">pending</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700">Trustmark Lodgement</td>
+                        <td className="p-2" colSpan="2">
+                          <select
+                            name="lodgement"
+                            value={formData.lodgement || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-2 py-1 rounded border outline-none ${formData.lodgement === "Pending" ? "bg-amber-500 text-white" : formData.lodgement === "Done" ? "bg-emerald-600 text-white" : "bg-white text-gray-800"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="Done">Done</option>
+                            <option value="Pending">Pending</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-2 font-semibold text-gray-700 bg-gray-100">Trustmark_Project_Certificate</td>
+                        <td className="p-2" colSpan="2">
+                          <input
+                            type="text"
+                            name="trustmark_project_certificate"
+                            value={formData.trustmark_project_certificate || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded bg-gray-50 outline-none"
+                            placeholder="P123456789"
+                          />
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700 w-1/3">Tecnika</td>
+                        <td className="p-2" colSpan="2">
+                          <select
+                            name="tecnica"
+                            value={formData.tecnica || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                          >
+                            <option value="">Select...</option>
+                            <option value="Assigned">Assigned</option>
+                            <option value="Failed">Failed</option>
+                            <option value="Pass">Pass</option>
+                            <option value="Remedial Pending">Remedial Pending</option>
+                            <option value="ByPASS(Not required)">ByPASS(Not required)</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-2 font-semibold text-gray-700">Scaffolding Removed</td>
+                        <td className="p-2">
+                          <select
+                            name="scaffolding_removed_status"
+                            value={formData.scaffolding_removed_status || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                          >
+                            <option value="">Select...</option>
+                            <option value="yes">yes</option>
+                            <option value="no">no</option>
+                          </select>
+                        </td>
+                        <td className="p-2 w-1/3">
+                          <input
+                            type="date"
+                            name="scaffolding_removed_date"
+                            value={formData.scaffolding_removed_date || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                          />
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700">Rubbish Collected</td>
+                        <td className="p-2">
+                          <select
+                            name="rubbish_collected_status"
+                            value={formData.rubbish_collected_status || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                          >
+                            <option value="">Select...</option>
+                            <option value="yes">yes</option>
+                            <option value="no">no</option>
+                          </select>
+                        </td>
+                        <td className="p-2">
+                          <input
+                            type="date"
+                            name="rubbish_collected_date"
+                            value={formData.rubbish_collected_date || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                          />
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="p-2 font-semibold text-gray-700">Customer Feed Back</td>
+                        <td className="p-2" colSpan="2">
+                          <textarea
+                            name="customer_feedback_notes"
+                            value={formData.customer_feedback_notes || ""}
+                            onChange={handleInputChange}
+                            rows="2"
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none resize-none"
+                            placeholder="Notes"
+                          />
+                        </td>
+                      </tr>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <td className="p-2 font-semibold text-gray-700 uppercase">Complete the project</td>
+                        <td className="p-2" colSpan="2">
+                          <select
+                            name="complete_the_project"
+                            value={formData.complete_the_project || ""}
+                            onChange={handleInputChange}
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none"
+                          >
+                            <option value="">Select...</option>
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="p-2 align-top">
+                          <div className="font-semibold text-gray-700 uppercase">Final Comments</div>
+                          <div className="font-semibold text-gray-700 mt-4">Notes</div>
+                        </td>
+                        <td className="p-2 space-y-2" colSpan="2">
+                          <select
+                            name="final_comments"
+                            value={formData.final_comments || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-2 py-1 rounded border outline-none ${formData.final_comments === "Some issues not resolved" ? "bg-red-100 text-red-800 border-red-300" : "bg-gray-50 border-gray-300"}`}
+                          >
+                            <option value="">Select...</option>
+                            <option value="All Good Thanks">All Good Thanks</option>
+                            <option value="it was not perfect">it was not perfect</option>
+                            <option value="We'll come back">We'll come back</option>
+                            <option value="Some issues not resolved">Some issues not resolved</option>
+                            <option value="yes but customer was not ready">yes but customer was not ready</option>
+                          </select>
+                          <textarea
+                            name="final_notes"
+                            value={formData.final_notes || ""}
+                            onChange={handleInputChange}
+                            rows="2"
+                            className="w-full px-2 py-1 border border-gray-300 rounded outline-none resize-none"
+                            placeholder="Enter final notes..."
+                          />
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )
+            }
 
             {/* Footer with Navigation */}
             <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
@@ -3427,7 +3744,7 @@ const LeadPropertyEvidenceForm = ({ leadId, isOpen, onClose, inline = false }) =
             </div>
           </>
         )}
-      </form>
+      </form >
     </div >
   );
 
